@@ -1,11 +1,28 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Building2, ChevronDown } from 'lucide-react'
 import { NavLink, useLocation } from 'react-router-dom'
 import { sidebarMenu } from './sidebarMenu.js'
 
+function matchesPath(to, pathname) {
+  return pathname === to || pathname.startsWith(`${to}/`)
+}
+
+function groupKeyForPath(pathname) {
+  return (
+    sidebarMenu.find((item) =>
+      item.children?.some((child) => pathname.startsWith(`${child.to}/`)),
+    )?.key || ''
+  )
+}
+
 function Sidebar({ open, onClose }) {
   const location = useLocation()
-  const [openKey, setOpenKey] = useState('')
+  const [openKey, setOpenKey] = useState(() => groupKeyForPath(location.pathname))
+
+  useEffect(() => {
+    const key = groupKeyForPath(location.pathname)
+    if (key) setOpenKey(key)
+  }, [location.pathname])
 
   function toggleGroup(key) {
     setOpenKey((current) => (current === key ? '' : key))
@@ -35,7 +52,9 @@ function Sidebar({ open, onClose }) {
           {sidebarMenu.map((item) => {
             const Icon = item.icon
             const isOpen = openKey === item.key
-            const childActive = item.children?.some((child) => child.to === location.pathname)
+            const childActive = item.children?.some((child) =>
+              matchesPath(child.to, location.pathname),
+            )
 
             if (!item.children) {
               return (
