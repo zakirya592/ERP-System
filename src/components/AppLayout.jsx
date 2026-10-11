@@ -7,10 +7,10 @@ function AppLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
   return (
-    <div className="flex min-h-screen bg-zinc-50 text-zinc-900">
+    <div className="flex h-screen overflow-hidden bg-[#eef3f8] text-zinc-900">
       <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-      <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex items-center gap-3 border-b border-zinc-200 bg-white px-4 py-3 lg:hidden">
+      <div className="page-scroll flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto">
+        <header className="sticky top-0 z-20 flex items-center gap-3 border-b border-zinc-200 bg-white px-4 py-3 lg:hidden">
           <button
             type="button"
             aria-label="Open menu"
@@ -21,7 +21,7 @@ function AppLayout() {
           </button>
           <p className="text-sm font-semibold tracking-wide">ERP ADMIN</p>
         </header>
-        <main className="flex-1 px-6 py-8">
+        <main className="flex-1 px-5 py-5">
           <Outlet />
         </main>
       </div>

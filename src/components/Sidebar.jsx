@@ -20,7 +20,7 @@ function Sidebar({ open, onClose }) {
         className={`fixed inset-0 z-30 bg-black/40 lg:hidden ${open ? 'block' : 'hidden'}`}
       />
       <aside
-        className={`fixed inset-y-0 left-0 z-40 flex w-[260px] flex-col bg-[#0c1322] text-slate-300 transition-transform lg:static lg:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-40 flex h-screen w-[260px] shrink-0 flex-col overflow-hidden bg-[#0c1322] text-slate-300 transition-transform lg:static lg:translate-x-0 ${
           open ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
@@ -31,7 +31,7 @@ function Sidebar({ open, onClose }) {
           <p className="text-sm font-semibold tracking-[0.14em] text-white">ERP ADMIN</p>
         </div>
 
-        <nav className="flex-1 space-y-1 overflow-y-auto px-3 pb-4">
+        <nav className="sidebar-scroll min-h-0 flex-1 space-y-1 overflow-y-auto px-3 pb-4">
           {sidebarMenu.map((item) => {
             const Icon = item.icon
             const isOpen = openKey === item.key

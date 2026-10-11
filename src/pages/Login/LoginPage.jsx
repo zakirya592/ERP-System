@@ -24,7 +24,7 @@ function LoginPage() {
           alt=""
           className="absolute inset-0 h-full w-full object-cover"
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-zinc-950/40 to-zinc-950/20" />
+        <div className="absolute inset-0 bg-linear-to-t from-zinc-950 via-zinc-950/40 to-zinc-950/20" />
         <div className="relative flex h-full flex-col justify-between p-6 text-white sm:p-10">
           <div className="flex items-center gap-3">
             <span className="flex size-10 items-center justify-center rounded-xl bg-white/15 backdrop-blur-sm">

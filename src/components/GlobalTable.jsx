@@ -9,6 +9,7 @@ function GlobalTable({
   ariaLabel = 'Table',
   className = '',
   rowClassName = 'border-b border-slate-100 last:border-b-0 hover:bg-slate-50',
+  onRowPress,
   emptyContent = 'No data available',
   totalCount = undefined,
   page: pageProp = undefined,
@@ -102,7 +103,11 @@ function GlobalTable({
             )}
           >
             {(item) => (
-              <Table.Row key={item.id || item.key} className={rowClassName}>
+              <Table.Row
+                key={item.id || item.key}
+                className={typeof rowClassName === 'function' ? rowClassName(item) : rowClassName}
+                onAction={onRowPress ? () => onRowPress(item) : undefined}
+              >
                 {columns.map((column) => (
                   <Table.Cell
                     key={column.key}

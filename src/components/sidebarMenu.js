@@ -17,7 +17,7 @@ export const sidebarMenu = [
   {
     key: 'dashboard',
     label: 'Dashboard',
-    to: '/',
+    to: '/dashboard',
     icon: LayoutDashboard,
   },
   {
