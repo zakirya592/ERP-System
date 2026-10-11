@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { Button } from '@heroui/react'
 import { Download, Plus, Search } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 import { toast } from 'react-toastify'
 import GlobalTable from '../../components/GlobalTable.jsx'
 
@@ -367,6 +368,7 @@ const customerColumns = [
 ]
 
 function CustomerPage() {
+  const navigate = useNavigate()
   const [tab, setTab] = useState('customer')
   const [query, setQuery] = useState('')
   const [branch, setBranch] = useState('Central Branch')
@@ -451,7 +453,7 @@ function CustomerPage() {
             <Download size={15} />
             Export
           </Button>
-          <Button size="sm" onPress={() => toast.success('Add customer is ready to connect.')}>
+          <Button size="sm" onPress={() => navigate('/sales/customers/new')}>
             <Plus size={15} />
             Add Customer
           </Button>
@@ -563,7 +565,7 @@ function CustomerPage() {
               <button
                 type="button"
                 onClick={() => toast.success(`Ledger opened for ${selected.name}.`)}
-                className="text-sm font-medium whitespace-nowrap text-sky-600"
+                className="text-sm font-medium whitespace-nowrap text-sky-600 cursor-pointer"
               >
                 Open {(activeTab?.singular || 'party').toLowerCase()} ledger
               </button>
