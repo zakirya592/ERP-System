@@ -551,7 +551,7 @@ function CustomerPage() {
           onRowPress={(item) => setSelectedId(item.id)}
           rowClassName={(item) =>
             `cursor-pointer border-b border-slate-100 last:border-b-0 hover:bg-slate-50 ${
-              item.id === selectedId ? 'bg-sky-50' : ''
+              item.id === selectedId ? 'row-selected' : ''
             }`
           }
         />

@@ -96,6 +96,7 @@ function GlobalTable({
 
           <Table.Body
             items={paginatedData}
+            dependencies={[rowClassName]}
             renderEmptyState={() => (
               <div className="flex min-h-50 w-full items-center justify-center text-center text-sm text-slate-500">
                 {emptyContent}
