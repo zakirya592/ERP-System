@@ -35,6 +35,7 @@ export const sidebarMenu = [
     label: 'Products & Inventory',
     icon: Package,
     children: [
+      { key: 'catalog', label: 'Products', to: '/products/products' },
       { key: 'categories', label: 'Categories', to: '/products/categories' },
       { key: 'stock', label: 'Stock', to: '/products/stock' },
       { key: 'movements', label: 'Stock Movements', to: '/products/movements' },
