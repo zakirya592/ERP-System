@@ -425,6 +425,11 @@ function CustomerPage() {
     : tabParties.filter((party) => party.status !== 'Active').length
 
   function changeTab(nextTab) {
+    if (nextTab === 'supplier') {
+      navigate('/purchases/suppliers')
+      return
+    }
+
     setTab(nextTab)
     const first = parties.find((party) => party.type === nextTab)
     setSelectedId(first?.id || '')

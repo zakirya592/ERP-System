@@ -65,7 +65,7 @@ function AddCustomerPage() {
         <button
           type="button"
           onClick={() => navigate('/sales/customers')}
-          className="inline-flex items-center gap-1.5 text-sm font-medium text-sky-600"
+          className="inline-flex items-center gap-1.5 text-sm font-medium text-sky-600 cursor-pointer"
         >
           <ArrowLeft size={15} />
           Back to Customer
@@ -223,13 +223,13 @@ function AddCustomerPage() {
           <button
             type="button"
             onClick={() => navigate('/sales/customers')}
-            className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700"
+            className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 cursor-pointer"
           >
             Cancel
           </button>
           <button
             type="submit"
-            className="rounded-lg bg-[#2563eb] px-4 py-2 text-sm font-medium text-white"
+            className="rounded-lg bg-[#2563eb] px-4 py-2 text-sm font-medium text-white cursor-pointer"
           >
             Save Customer
           </button>
