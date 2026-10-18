@@ -8,6 +8,7 @@ export const queryKeys = {
   },
   roles: {
     list: (params) => ['roles', 'list', params],
+    detail: (id) => ['roles', 'detail', id],
   },
   permissions: {
     list: (params) => ['permissions', 'list', params],

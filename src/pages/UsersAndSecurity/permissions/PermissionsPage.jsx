@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Check, Minus, Search } from 'lucide-react'
+import { Link } from 'react-router-dom'
 import { usePermissions } from '../../../queries/permissions/permissions.queries.js'
 
 const limit = 20
@@ -83,7 +84,13 @@ function PermissionsPage() {
   return (
     <div className="space-y-4">
       <div>
-        <p className="text-[11px] font-semibold tracking-[0.16em] text-slate-400 uppercase">Users & Security</p>
+        <nav aria-label="Breadcrumb" className="flex flex-wrap items-center gap-2 text-sm text-slate-400">
+          <Link to="/dashboard" className="text-sm font-medium text-slate-700 hover:text-slate-700">
+            Dashboard
+          </Link>
+          <span>/</span>
+          <p className="text-[11px] font-semibold tracking-[0.16em] text-slate-400 uppercase">Users & Security</p>
+        </nav>
         <h1 className="mt-1 text-[32px] leading-none font-semibold tracking-tight text-slate-900">Permissions</h1>
         <p className="mt-2 text-sm text-slate-500">Actions available on each module.</p>
       </div>

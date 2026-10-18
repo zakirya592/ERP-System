@@ -20,3 +20,9 @@ export const createUser = async (data) => {
 
   return response.data
 }
+
+export const updateUser = async (id, data) => {
+  const response = await api.patch(`/users/${id}`, data)
+
+  return response.data
+}

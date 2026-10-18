@@ -96,6 +96,12 @@ function ViewUserPage() {
                   <p className="mt-1.5 truncate text-sm text-slate-500">{user.email}</p>
                 </div>
               </div>
+              <Link
+                to={`/users/users/${user._id}/edit`}
+                className="inline-flex w-fit rounded-lg bg-[#2563eb] px-4 py-2 text-sm font-medium text-white"
+              >
+                Update
+              </Link>
             </div>
 
             <div className="grid border-t border-slate-100 sm:grid-cols-3">

@@ -15,6 +15,9 @@ import AddUserPage from './pages/UsersAndSecurity/Users/AddUserPage.jsx'
 import PermissionsPage from './pages/UsersAndSecurity/Permissions/PermissionsPage.jsx'
 import AddRolePage from './pages/UsersAndSecurity/Roles/AddRolePage.jsx'
 import RolesPage from './pages/UsersAndSecurity/Roles/RolesPage.jsx'
+import UpdateRolePage from './pages/UsersAndSecurity/Roles/UpdateRolePage.jsx'
+import ViewRolePage from './pages/UsersAndSecurity/Roles/ViewRolePage.jsx'
+import UpdateUserPage from './pages/UsersAndSecurity/Users/UpdateUserPage.jsx'
 import UsersPage from './pages/UsersAndSecurity/Users/UsersPage.jsx'
 import ViewUserPage from './pages/UsersAndSecurity/Users/ViewUserPage.jsx'
 import ModulePage from './pages/ModulePage.jsx'
@@ -36,9 +39,12 @@ function App() {
         <Route path="/products/categories" element={<CategoryPage />} />
         <Route path="/users/users" element={<UsersPage />} />
         <Route path="/users/users/new" element={<AddUserPage />} />
+        <Route path="/users/users/:id/edit" element={<UpdateUserPage />} />
         <Route path="/users/users/:id" element={<ViewUserPage />} />
         <Route path="/users/roles" element={<RolesPage />} />
         <Route path="/users/roles/new" element={<AddRolePage />} />
+        <Route path="/users/roles/:id" element={<ViewRolePage />} />
+        <Route path="/users/roles/:id/edit" element={<UpdateRolePage />} />
         <Route path="/users/permissions" element={<PermissionsPage />} />
         <Route path=":section/:page" element={<ModulePage />} />
       </Route>

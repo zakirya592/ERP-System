@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Button } from '@heroui/react'
-import { Plus, Search } from 'lucide-react'
-import { useNavigate } from 'react-router-dom'
+import { Eye, Pencil, Plus, Search } from 'lucide-react'
+import { createPortal } from 'react-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import GlobalTable from '../../../components/GlobalTable.jsx'
 import { useRoleList } from '../../../queries/roles/roles.queries.js'
 
@@ -29,14 +30,95 @@ function formatWhen(value) {
   })
 }
 
-function permissionLabel(permissions) {
-  const codes = (permissions || []).map((item) => item.code).filter(Boolean)
-  if (!codes.length) return '—'
-  const shown = codes.slice(0, 3).join(', ')
-  return codes.length > 3 ? `${shown} +${codes.length - 3}` : shown
+const actionOrder = ['create', 'read', 'update', 'delete', 'approve', 'post', 'all']
+
+function titleCase(value) {
+  return String(value || '')
+    .replace(/[_-]+/g, ' ')
+    .replace(/\b\w/g, (char) => char.toUpperCase())
 }
 
-const columns = [
+function groupPermissions(permissions) {
+  const groups = []
+  const index = new Map()
+
+  ;(permissions || []).forEach((permission) => {
+    const moduleKey = permission.module || permission.code?.split('.')[0] || 'other'
+    const action = permission.action || permission.code?.split('.')[1] || permission.code
+    if (!action) return
+
+    if (!index.has(moduleKey)) {
+      index.set(moduleKey, groups.length)
+      groups.push({ key: moduleKey, label: titleCase(moduleKey), actions: [] })
+    }
+
+    const group = groups[index.get(moduleKey)]
+    if (!group.actions.includes(action)) group.actions.push(action)
+  })
+
+  groups.forEach((group) => {
+    group.actions.sort((left, right) => {
+      const leftIndex = actionOrder.indexOf(left)
+      const rightIndex = actionOrder.indexOf(right)
+      return (leftIndex === -1 ? 99 : leftIndex) - (rightIndex === -1 ? 99 : rightIndex)
+    })
+  })
+
+  return groups
+}
+
+function PermissionCell({ permissions }) {
+  const groups = groupPermissions(permissions)
+  const [tip, setTip] = useState(null)
+  const count = (permissions || []).length
+
+  if (!groups.length) return <span className="text-[13px] text-slate-400">—</span>
+
+  function show(event) {
+    const rect = event.currentTarget.getBoundingClientRect()
+    const width = 240
+    setTip({
+      top: rect.bottom + 8,
+      left: Math.max(8, Math.min(rect.left, window.innerWidth - width - 8)),
+    })
+  }
+
+  return (
+    <>
+      <button
+        type="button"
+        onMouseEnter={show}
+        onMouseLeave={() => setTip(null)}
+        onFocus={show}
+        onBlur={() => setTip(null)}
+        className="cursor-default text-[13px] text-slate-600 underline decoration-dotted decoration-slate-300 underline-offset-4"
+      >
+        {count} {count === 1 ? 'permission' : 'permissions'}
+      </button>
+      {tip &&
+        createPortal(
+          <div
+            role="tooltip"
+            style={{ top: tip.top, left: tip.left }}
+            className="pointer-events-none fixed z-50 w-60 rounded-lg bg-slate-900 px-3 py-2 text-left shadow-lg"
+          >
+            <span className="absolute -top-1 left-4 size-2 rotate-45 bg-slate-900" />
+            <ul className="space-y-1">
+              {groups.map((group) => (
+                <li key={group.key} className="text-[12px] leading-4 text-white">
+                  <span className="font-medium">{group.label}</span>
+                  <span className="text-slate-300"> · {group.actions.map(titleCase).join(', ')}</span>
+                </li>
+              ))}
+            </ul>
+          </div>,
+          document.body,
+        )}
+    </>
+  )
+}
+
+const roleColumns = [
   {
     key: 'name',
     label: 'NAME',
@@ -51,7 +133,7 @@ const columns = [
   {
     key: 'permissions',
     label: 'PERMISSIONS',
-    renderCell: (item) => <span className="text-[13px] text-slate-600">{permissionLabel(item.permissionIds)}</span>,
+    renderCell: (item) => <PermissionCell permissions={item.permissionIds} />,
   },
   {
     key: 'status',
@@ -75,6 +157,33 @@ const columns = [
 
 function RolesPage() {
   const navigate = useNavigate()
+  const columns = [
+    ...roleColumns,
+    {
+      key: 'action',
+      label: 'ACTION',
+      renderCell: (item) => (
+        <div className="flex items-center gap-1">
+          <button
+            type="button"
+            aria-label={`View ${item.name}`}
+            onClick={() => navigate(`/users/roles/${item._id}`)}
+            className="inline-flex cursor-pointer items-center justify-center rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 hover:text-[#2563eb]"
+          >
+            <Eye size={16} />
+          </button>
+          <button
+            type="button"
+            aria-label={`Update ${item.name}`}
+            onClick={() => navigate(`/users/roles/${item._id}/edit`)}
+            className="inline-flex cursor-pointer items-center justify-center rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 hover:text-[#2563eb]"
+          >
+            <Pencil size={16} />
+          </button>
+        </div>
+      ),
+    },
+  ]
   const [page, setPage] = useState(1)
   const [search, setSearch] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
@@ -97,7 +206,14 @@ function RolesPage() {
     <div className="space-y-4">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
+          <nav aria-label="Breadcrumb" className="flex flex-wrap items-center gap-2 text-sm text-slate-400">
+          <Link to="/dashboard" className="hover:text-slate-700 text-sm font-medium text-slate-700">
+            Dashboard
+          </Link>
+         
+          <span>/</span>
           <p className="text-[11px] font-semibold tracking-[0.16em] text-slate-400 uppercase">Users & Security</p>
+        </nav>
           <h1 className="mt-1 text-[32px] leading-none font-semibold tracking-tight text-slate-900">Roles</h1>
           <p className="mt-2 text-sm text-slate-500">Roles and the permissions assigned to each one.</p>
         </div>

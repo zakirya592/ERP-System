@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Button } from '@heroui/react'
-import { Eye, Plus, Search } from 'lucide-react'
-import { useNavigate } from 'react-router-dom'
+import { Eye, Pencil, Plus, Search } from 'lucide-react'
+import { Link, useNavigate } from 'react-router-dom'
 import GlobalTable from '../../../components/GlobalTable.jsx'
 import { useUsers } from '../../../queries/users/users.queries.js'
 
@@ -83,14 +83,24 @@ function UsersPage() {
       key: 'action',
       label: 'ACTION',
       renderCell: (item) => (
-        <button
-          type="button"
-          aria-label={`View ${item.name}`}
-          onClick={() => navigate(`/users/users/${item._id}`)}
-          className="inline-flex cursor-pointer items-center justify-center rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 hover:text-[#2563eb]"
-        >
-          <Eye size={16} />
-        </button>
+        <div className="flex items-center gap-1">
+          <button
+            type="button"
+            aria-label={`View ${item.name}`}
+            onClick={() => navigate(`/users/users/${item._id}`)}
+            className="inline-flex cursor-pointer items-center justify-center rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 hover:text-[#2563eb]"
+          >
+            <Eye size={16} />
+          </button>
+          <button
+            type="button"
+            aria-label={`Update ${item.name}`}
+            onClick={() => navigate(`/users/users/${item._id}/edit`)}
+            className="inline-flex cursor-pointer items-center justify-center rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 hover:text-[#2563eb]"
+          >
+            <Pencil size={16} />
+          </button>
+        </div>
       ),
     },
   ]
@@ -116,7 +126,13 @@ function UsersPage() {
     <div className="space-y-4">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <p className="text-[11px] font-semibold tracking-[0.16em] text-slate-400 uppercase">Users & Security</p>
+          <nav aria-label="Breadcrumb" className="flex flex-wrap items-center gap-2 text-sm text-slate-400">
+            <Link to="/dashboard" className="text-sm font-medium text-slate-700 hover:text-slate-700">
+              Dashboard
+            </Link>
+            <span>/</span>
+            <p className="text-[11px] font-semibold tracking-[0.16em] text-slate-400 uppercase">Users & Security</p>
+          </nav>
           <h1 className="mt-1 text-[32px] leading-none font-semibold tracking-tight text-slate-900">Users</h1>
           <p className="mt-2 text-sm text-slate-500">People who can sign in, and the roles assigned to them.</p>
         </div>
