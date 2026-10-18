@@ -1,5 +1,7 @@
+import {  useQueryClient } from '@tanstack/react-query'
 import { Calendar, ChevronDown, Receipt, ShoppingCart, TrendingUp, Wallet } from 'lucide-react'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import {  prefetchDashboard } from '../queries/prefetchDashboard'
 
 const metrics = [
   {
@@ -73,7 +75,12 @@ const activity = [
 ]
 
 function DashboardPage() {
+  const queryClient = useQueryClient()
   const [branch, setBranch] = useState('Central Branch')
+
+  useEffect(() => {
+    prefetchDashboard(queryClient)
+  }, [queryClient])
 
   return (
     <div className="space-y-4">
@@ -107,6 +114,8 @@ function DashboardPage() {
           </div>
         </div>
       </div>
+
+    
 
       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
         {metrics.map((metric) => (
@@ -241,6 +250,7 @@ function DashboardPage() {
     </div>
   )
 }
+
 
 function MetricCard({ metric }) {
   const Icon = metric.icon
