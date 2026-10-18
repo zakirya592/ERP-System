@@ -10,7 +10,7 @@ function matchesPath(to, pathname) {
 function groupKeyForPath(pathname) {
   return (
     sidebarMenu.find((item) =>
-      item.children?.some((child) => pathname.startsWith(`${child.to}/`)),
+      item.children?.some((child) => matchesPath(child.to, pathname)),
     )?.key || ''
   )
 }

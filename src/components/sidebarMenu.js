@@ -5,6 +5,7 @@ import {
   Database,
   LayoutDashboard,
   Package,
+  Receipt,
   Settings,
   Shield,
   ShoppingBag,
@@ -26,8 +27,9 @@ export const sidebarMenu = [
     icon: Building2,
     children: [
       { key: 'branches', label: 'Branches', to: '/organization/branches' },
-      { key: 'departments', label: 'Departments', to: '/organization/departments' },
       { key: 'warehouses', label: 'Warehouses', to: '/organization/warehouses' },
+      { key: 'shop', label: 'Shop', to: '/organization/shop' },
+      { key: 'employees', label: 'Employees', to: '/organization/employees' },
     ],
   },
   {
@@ -49,9 +51,10 @@ export const sidebarMenu = [
     label: 'Sales',
     icon: ShoppingCart,
     children: [
-      { key: 'orders', label: 'Orders', to: '/sales/orders' },
-      { key: 'invoices', label: 'Invoices', to: '/sales/invoices' },
+      { key: 'sales', label: 'Sales', to: '/sales/sales' },
+      { key: 'returns', label: 'Sales Return', to: '/sales/returns' },
       { key: 'customers', label: 'Customers', to: '/sales/customers' },
+      { key: 'shipments', label: 'Shipments', to: '/sales/shipments' },
     ],
   },
   {
@@ -60,7 +63,18 @@ export const sidebarMenu = [
     icon: ShoppingBag,
     children: [
       { key: 'orders', label: 'Purchase Orders', to: '/purchases/orders' },
+      { key: 'returns', label: 'Purchases Return', to: '/purchases/returns' },
       { key: 'suppliers', label: 'Suppliers', to: '/purchases/suppliers' },
+    ],
+  },
+  {
+    key: 'expenses',
+    label: 'Expenses',
+    icon: Receipt,
+    children: [
+      { key: 'all', label: 'All Expenses', to: '/expenses/all' },
+      { key: 'categories', label: 'Categories', to: '/expenses/categories' },
+      { key: 'reports', label: 'Expense Reports', to: '/expenses/reports' },
     ],
   },
   {
@@ -70,6 +84,7 @@ export const sidebarMenu = [
     children: [
       { key: 'payments', label: 'Payments', to: '/payments/payments' },
       { key: 'receipts', label: 'Receipts', to: '/payments/receipts' },
+      { key: 'vouchers', label: 'Vouchers', to: '/payments/vouchers' }
     ],
   },
   {
@@ -78,7 +93,13 @@ export const sidebarMenu = [
     icon: Calculator,
     children: [
       { key: 'accounts', label: 'Chart of Accounts', to: '/accounting/accounts' },
-      { key: 'journals', label: 'Journals', to: '/accounting/journals' },
+      { key: 'ledger', label: 'Ledger', to: '/accounting/ledger' },
+      { key: 'cashbook', label: 'Cashbook', to: '/accounting/cashbook' },
+      { key: 'banks', label: 'Banks', to: '/accounting/banks' },
+      { key: 'assets', label: 'Assets', to: '/accounting/assets' },
+      { key: 'liabilities', label: 'Liabilities', to: '/accounting/liabilities' },
+      { key: 'capital', label: 'Capital', to: '/accounting/capital' },
+      { key: 'trial-balance', label: 'Trial Balance', to: '/accounting/trial-balance' },
     ],
   },
   {
@@ -86,8 +107,9 @@ export const sidebarMenu = [
     label: 'Logistics',
     icon: Truck,
     children: [
+      { key: 'transporters', label: 'Transporters', to: '/logistics/transporters' },
+      { key: 'vehicles', label: 'Vehicles', to: '/logistics/vehicles' },
       { key: 'shipments', label: 'Shipments', to: '/logistics/shipments' },
-      { key: 'carriers', label: 'Carriers', to: '/logistics/carriers' },
     ],
   },
   {
@@ -96,7 +118,11 @@ export const sidebarMenu = [
     icon: BarChart3,
     children: [
       { key: 'sales', label: 'Sales Reports', to: '/reports/sales' },
+      { key: 'purchases', label: 'Purchase Reports', to: '/reports/purchases' },
       { key: 'inventory', label: 'Inventory Reports', to: '/reports/inventory' },
+      { key: 'expenses', label: 'Expense Reports', to: '/reports/expenses' },
+      { key: 'financial', label: 'Financial Reports', to: '/reports/financial' },
+      { key: 'statements', label: 'Financial Statements', to: '/reports/statements' },
     ],
   },
   {
@@ -104,8 +130,10 @@ export const sidebarMenu = [
     label: 'Master Data',
     icon: Database,
     children: [
+      { key: 'currency', label: 'Currency', to: '/master-data/currency' },
       { key: 'units', label: 'Units', to: '/master-data/units' },
-      { key: 'taxes', label: 'Taxes', to: '/master-data/taxes' },
+      { key: 'packing-units', label: 'Packing Units', to: '/master-data/packing-units' },
+      { key: 'categories', label: 'Categories', to: '/master-data/categories' },
     ],
   },
   {
@@ -115,6 +143,8 @@ export const sidebarMenu = [
     children: [
       { key: 'users', label: 'Users', to: '/users/users' },
       { key: 'roles', label: 'Roles', to: '/users/roles' },
+      { key: 'permissions', label: 'Permissions', to: '/users/permissions' },
+      { key: 'audit', label: 'Audit Logs', to: '/users/audit' },
     ],
   },
   {

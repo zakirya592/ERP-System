@@ -61,3 +61,9 @@ body {
   box-shadow: inset 3px 0 0 #2f6fed;
 }
 
+@media (width >= 80rem) {
+  .category-split {
+    grid-template-columns: minmax(0, 1fr) 320px;
+  }
+}
+

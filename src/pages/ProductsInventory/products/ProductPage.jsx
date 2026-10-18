@@ -3,7 +3,7 @@ import { Button } from '@heroui/react'
 import { useNavigate } from 'react-router-dom'
 import { Boxes, CircleDollarSign, Download, Plus, Search, SlidersHorizontal, Trash2, TriangleAlert, Upload } from 'lucide-react'
 import { toast } from 'react-toastify'
-import GlobalTable from '../../components/GlobalTable.jsx'
+import GlobalTable from '../../../components/GlobalTable.jsx'
 
 const catalogTotal = 3846
 const rowsPerPage = 10
