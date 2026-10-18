@@ -5,15 +5,32 @@ import { LayoutDashboard } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'react-toastify'
 import loginVisual from '../../assets/login-visual.jpg'
+import { useLogin } from '../../queries/auth/auth.queries'
 
 function LoginPage() {
   const navigate = useNavigate()
+  const login = useLogin()
   const [showPassword, setShowPassword] = useState(false)
 
   function handleSubmit(event) {
     event.preventDefault()
-    toast.success('Signed in')
-    navigate('/dashboard', { replace: true })
+    const formData = new FormData(event.currentTarget)
+
+    login.mutate(
+      {
+        email: String(formData.get('email') || ''),
+        password: String(formData.get('password') || ''),
+      },
+      {
+        onSuccess: (data) => {
+          toast.success(data?.message || 'Logged in')
+          navigate('/dashboard', { replace: true })
+        },
+        onError: (error) => {
+          toast.error(error.response?.data?.message || 'Sign in failed')
+        },
+      },
+    )
   }
 
   return (
@@ -88,8 +105,8 @@ function LoginPage() {
               <FieldError />
             </TextField>
 
-            <Button type="submit" fullWidth>
-              Sign in
+            <Button type="submit" fullWidth isDisabled={login.isPending}>
+              {login.isPending ? 'Signing in' : 'Sign in'}
             </Button>
           </Form>
         </motion.div>
