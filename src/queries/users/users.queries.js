@@ -21,8 +21,8 @@ export const useUser = (id) => {
 
 export const useRoles = () => {
   return useQuery({
-    queryKey: queryKeys.roles.list(),
-    queryFn: getRoles,
+    queryKey: queryKeys.roles.list({ page: 1, limit: 100 }),
+    queryFn: () => getRoles({ page: 1, limit: 100 }),
   })
 }
 

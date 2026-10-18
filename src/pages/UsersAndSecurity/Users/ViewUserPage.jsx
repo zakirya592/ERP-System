@@ -1,6 +1,6 @@
 import { Building2, Calendar, Clock, Mail, Phone, Shield, Warehouse } from 'lucide-react'
 import { Link, useParams } from 'react-router-dom'
-import { useUser } from '../../queries/users/users.queries'
+import { useUser } from '../../../queries/users/users.queries'
 
 const statusClass = {
   active: 'bg-emerald-50 text-emerald-600',

@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react'
 import { Button } from '@heroui/react'
-import { Eye, Plus, Search } from 'lucide-react'
+import { Plus, Search } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
-import GlobalTable from '../../components/GlobalTable.jsx'
-import { useUsers } from '../../queries/users/users.queries'
+import GlobalTable from '../../../components/GlobalTable.jsx'
+import { useRoleList } from '../../../queries/roles/roles.queries.js'
 
 const limit = 20
 
@@ -29,7 +29,14 @@ function formatWhen(value) {
   })
 }
 
-const userColumns = [
+function permissionLabel(permissions) {
+  const codes = (permissions || []).map((item) => item.code).filter(Boolean)
+  if (!codes.length) return '—'
+  const shown = codes.slice(0, 3).join(', ')
+  return codes.length > 3 ? `${shown} +${codes.length - 3}` : shown
+}
+
+const columns = [
   {
     key: 'name',
     label: 'NAME',
@@ -37,23 +44,14 @@ const userColumns = [
     renderCell: (item) => <span className="text-[13px] font-medium text-slate-800">{item.name}</span>,
   },
   {
-    key: 'email',
-    label: 'EMAIL',
-    renderCell: (item) => <span className="text-[13px] text-slate-500">{item.email || '—'}</span>,
+    key: 'code',
+    label: 'CODE',
+    renderCell: (item) => <span className="font-mono text-[12px] text-slate-500">{item.code || '—'}</span>,
   },
   {
-    key: 'phone',
-    label: 'PHONE',
-    renderCell: (item) => <span className="text-[13px] text-slate-500">{item.phone || '—'}</span>,
-  },
-  {
-    key: 'role',
-    label: 'ROLE',
-    renderCell: (item) => (
-      <span className="text-[13px] text-slate-600">
-        {item.roleIds?.map((role) => role.name).filter(Boolean).join(', ') || '—'}
-      </span>
-    ),
+    key: 'permissions',
+    label: 'PERMISSIONS',
+    renderCell: (item) => <span className="text-[13px] text-slate-600">{permissionLabel(item.permissionIds)}</span>,
   },
   {
     key: 'status',
@@ -69,31 +67,14 @@ const userColumns = [
     ),
   },
   {
-    key: 'lastLoginAt',
-    label: 'LAST LOGIN',
-    renderCell: (item) => <span className="text-[13px] text-slate-500">{formatWhen(item.lastLoginAt)}</span>,
+    key: 'updatedAt',
+    label: 'UPDATED',
+    renderCell: (item) => <span className="text-[13px] text-slate-500">{formatWhen(item.updatedAt)}</span>,
   },
 ]
 
-function UsersPage() {
+function RolesPage() {
   const navigate = useNavigate()
-  const columns = [
-    ...userColumns,
-    {
-      key: 'action',
-      label: 'ACTION',
-      renderCell: (item) => (
-        <button
-          type="button"
-          aria-label={`View ${item.name}`}
-          onClick={() => navigate(`/users/users/${item._id}`)}
-          className="inline-flex cursor-pointer items-center justify-center rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 hover:text-[#2563eb]"
-        >
-          <Eye size={16} />
-        </button>
-      ),
-    },
-  ]
   const [page, setPage] = useState(1)
   const [search, setSearch] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
@@ -108,32 +89,30 @@ function UsersPage() {
     setPage(1)
   }, [debouncedSearch, status])
 
-  const usersQuery = useUsers({ page, limit, search: debouncedSearch, status })
-  const users = (usersQuery.data?.data || []).map((user) => ({ ...user, id: user._id }))
-  const total = usersQuery.data?.meta?.total ?? users.length
+  const rolesQuery = useRoleList({ page, limit, search: debouncedSearch, status })
+  const roles = (rolesQuery.data?.data || []).map((role) => ({ ...role, id: role._id }))
+  const total = rolesQuery.data?.meta?.total ?? roles.length
 
   return (
     <div className="space-y-4">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <p className="text-[11px] font-semibold tracking-[0.16em] text-slate-400 uppercase">Users & Security</p>
-          <h1 className="mt-1 text-[32px] leading-none font-semibold tracking-tight text-slate-900">Users</h1>
-          <p className="mt-2 text-sm text-slate-500">People who can sign in, and the roles assigned to them.</p>
+          <h1 className="mt-1 text-[32px] leading-none font-semibold tracking-tight text-slate-900">Roles</h1>
+          <p className="mt-2 text-sm text-slate-500">Roles and the permissions assigned to each one.</p>
         </div>
-        <Button size="sm" onPress={() => navigate('/users/users/new')}>
+        <Button size="sm" onPress={() => navigate('/users/roles/new')}>
           <Plus size={15} />
-          Add User
+          Add Role
         </Button>
       </div>
 
       <section className="rounded-2xl border border-slate-200/80 bg-white shadow-sm">
-        <div className="flex flex-col gap-3 border-b border-slate-100 px-5 py-4 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <h2 className="text-base font-semibold text-slate-900">User list</h2>
-            <p className="mt-0.5 text-sm text-slate-400">
-              {total} {total === 1 ? 'user' : 'users'}
-            </p>
-          </div>
+        <div className="border-b border-slate-100 px-5 py-4">
+          <h2 className="text-base font-semibold text-slate-900">Role list</h2>
+          <p className="mt-0.5 text-sm text-slate-400">
+            {total} {total === 1 ? 'role' : 'roles'}
+          </p>
         </div>
 
         <div className="flex flex-col gap-2 px-5 py-3 sm:flex-row sm:items-center">
@@ -142,7 +121,7 @@ function UsersPage() {
             <input
               value={search}
               onChange={(event) => setSearch(event.target.value)}
-              placeholder="Search name or email"
+              placeholder="Search name or code"
               className="w-full rounded-lg border border-slate-200 py-2 pr-3 pl-9 text-sm outline-none focus:border-sky-400"
             />
           </label>
@@ -160,22 +139,21 @@ function UsersPage() {
         </div>
 
         <GlobalTable
-          ariaLabel="Users"
+          ariaLabel="Roles"
           columns={columns}
-          data={users}
+          data={roles}
           pagination
           rowsPerPage={limit}
           page={page}
           totalCount={total}
           onPageChange={setPage}
           className="!h-auto !max-h-none"
-          rowClassName="border-b border-slate-100 last:border-b-0 hover:bg-slate-50"
           emptyContent={
-            usersQuery.isError
-              ? usersQuery.error.response?.data?.message || 'Could not load users.'
-              : usersQuery.isLoading
-                ? 'Loading users...'
-                : 'No users match these filters.'
+            rolesQuery.isError
+              ? rolesQuery.error.response?.data?.message || 'Could not load roles.'
+              : rolesQuery.isLoading
+                ? 'Loading roles...'
+                : 'No roles match these filters.'
           }
         />
       </section>
@@ -183,4 +161,4 @@ function UsersPage() {
   )
 }
 
-export default UsersPage
+export default RolesPage

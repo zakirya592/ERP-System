@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { ChevronDown, Eye, EyeOff } from 'lucide-react'
 import { Link, useNavigate } from 'react-router-dom'
 import { toast } from 'react-toastify'
-import { useCreateUser, useRoles } from '../../queries/users/users.queries'
+import { useCreateUser, useRoles } from '../../../queries/users/users.queries'
 
 const emptyForm = {
   name: '',
