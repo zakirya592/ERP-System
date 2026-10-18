@@ -11,6 +11,9 @@ import NewSalePage from './pages/Sales/NewSalePage.jsx'
 import SalesPage from './pages/Sales/SalesPage.jsx'
 import AddSupplierPage from './pages/Supplier/AddSupplierPage.jsx'
 import SupplierPage from './pages/Supplier/SupplierPage.jsx'
+import AddUserPage from './pages/Users/AddUserPage.jsx'
+import UsersPage from './pages/Users/UsersPage.jsx'
+import ViewUserPage from './pages/Users/ViewUserPage.jsx'
 import ModulePage from './pages/ModulePage.jsx'
 
 function App() {
@@ -28,6 +31,9 @@ function App() {
         <Route path="/products/products" element={<ProductPage />} />
         <Route path="/products/products/new" element={<AddProductPage />} />
         <Route path="/products/categories" element={<CategoryPage />} />
+        <Route path="/users/users" element={<UsersPage />} />
+        <Route path="/users/users/new" element={<AddUserPage />} />
+        <Route path="/users/users/:id" element={<ViewUserPage />} />
         <Route path=":section/:page" element={<ModulePage />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
