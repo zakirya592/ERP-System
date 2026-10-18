@@ -1,1 +1,1 @@
-export const baseUrl = import.meta.env.VITE_API_URL || 'https://erpsystemapi.vercel.app/api/v1'
+export const baseUrl = 'https://erpsystemapi.vercel.app/api/v1'
