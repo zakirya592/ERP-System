@@ -9,6 +9,7 @@ import CategoryPage from './pages/ProductsInventory/categories/CategoryPage.jsx'
 import ProductPage from './pages/ProductsInventory/products/ProductPage.jsx'
 import NewSalePage from './pages/Sales/NewSalePage.jsx'
 import SalesPage from './pages/Sales/SalesPage.jsx'
+import SalesReturnPage from './pages/Sales/SalesReturnPage.jsx'
 import AddSupplierPage from './pages/Supplier/AddSupplierPage.jsx'
 import SupplierPage from './pages/Supplier/SupplierPage.jsx'
 import AddUserPage from './pages/UsersAndSecurity/Users/AddUserPage.jsx'
@@ -30,6 +31,7 @@ function App() {
         <Route path="/dashboard" element={<DashboardPage />} />
         <Route path="/sales/sales" element={<SalesPage />} />
         <Route path="/sales/sales/new" element={<NewSalePage />} />
+        <Route path="/sales/returns" element={<SalesReturnPage />} />
         <Route path="/sales/customers" element={<CustomerPage />} />
         <Route path="/sales/customers/new" element={<AddCustomerPage />} />
         <Route path="/purchases/suppliers" element={<SupplierPage />} />
