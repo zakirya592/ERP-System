@@ -2,24 +2,27 @@ import { useState } from 'react'
 import { ArrowLeft, Check, ChevronDown } from 'lucide-react'
 import { Link, useNavigate } from 'react-router-dom'
 import { toast } from 'react-toastify'
+import { useCreateBranch } from '../../queries/branches/branches.queries.js'
+import { useUsers } from '../../queries/users/users.queries.js'
 
-const tabs = ['Branches', 'Shops', 'Warehouses', 'Employees', 'Owners', 'Partnerships']
-
-const branchTypes = ['Retail', 'Distribution', 'Regional office']
-const managers = ['Omar Khalid', 'Nadia Saleh', 'Lina Abbas']
-const warehouses = [
-  { value: 'WH-001', label: 'Main Warehouse' },
-  { value: 'WH-002', label: 'Reserve Warehouse' },
-  { value: 'WH-011', label: 'North Warehouse' },
-  { value: 'WH-021', label: 'Airport Warehouse' },
-]
-const shops = [
-  { value: 'SH-001', label: 'Central Shop' },
-  { value: 'SH-002', label: 'Market Shop' },
-  { value: 'SH-003', label: 'Riverside Shop' },
-  { value: 'SH-011', label: 'North Shop' },
+const branchTypes = [
+  { value: 'head_office', label: 'Head office' },
+  { value: 'retail', label: 'Retail' },
+  { value: 'distribution', label: 'Distribution' },
+  { value: 'regional_office', label: 'Regional office' },
 ]
 const documentTypes = ['Registration', 'License', 'Lease agreement', 'Tax certificate']
+
+const apiFields = {
+  branchType: 'type',
+  location: 'city',
+  managerId: 'manager',
+  defaultWarehouseId: 'warehouse',
+  defaultShopId: 'shop',
+  costCentre: 'costCenter',
+  'document.type': 'documentType',
+  'document.reference': 'documentReference',
+}
 
 const steps = [
   'Complete required information',
@@ -31,7 +34,7 @@ const steps = [
 const emptyForm = {
   name: '',
   code: '',
-  type: '',
+  type: 'head_office',
   openingDate: '',
   address: '',
   city: '',
@@ -40,17 +43,50 @@ const emptyForm = {
   manager: '',
   warehouse: '',
   shop: '',
-  currency: '',
   costCenter: '',
   documentPrefix: '',
   documentType: '',
   documentReference: '',
-  documentName: '',
   notes: '',
+}
+
+function nullableId(value) {
+  const text = String(value ?? '').trim()
+  return text || null
+}
+
+function toBranchBody(form) {
+  return {
+    name: form.name.trim(),
+    code: form.code.trim(),
+    branchType: form.type || 'head_office',
+    openingDate: form.openingDate || null,
+    phone: form.phone.trim(),
+    email: form.email.trim(),
+    location: form.city.trim(),
+    address: form.address.trim(),
+    managerId: nullableId(form.manager),
+    defaultWarehouseId: nullableId(form.warehouse),
+    defaultShopId: nullableId(form.shop),
+    status: 'active',
+    costCentre: form.costCenter.trim(),
+    documentPrefix: form.documentPrefix.trim(),
+    document: {
+      type: form.documentType.trim(),
+      reference: form.documentReference.trim(),
+    },
+    notes: form.notes.trim(),
+  }
 }
 
 function AddBranchPage() {
   const navigate = useNavigate()
+  const createBranch = useCreateBranch()
+  const usersQuery = useUsers({ page: 1, limit: 100, search: '', status: '' })
+  const managers = (usersQuery.data?.data || []).map((user) => ({
+    value: user._id,
+    label: user.name || user.email,
+  }))
   const [form, setForm] = useState(emptyForm)
   const [errors, setErrors] = useState({})
 
@@ -63,24 +99,44 @@ function AddBranchPage() {
     const nextErrors = {}
     if (!form.name.trim()) nextErrors.name = 'Enter a branch name.'
     if (!form.address.trim()) nextErrors.address = 'Enter an address.'
-    if (!form.manager) nextErrors.manager = 'Select a branch manager.'
-    if (!form.warehouse) nextErrors.warehouse = 'Select a default warehouse.'
     if (form.email.trim() && !form.email.includes('@')) nextErrors.email = 'Enter a valid email.'
     setErrors(nextErrors)
     return Object.keys(nextErrors).length === 0
   }
 
-  function handleSubmit(event) {
-    event.preventDefault()
-    if (!validate()) return
-    toast.success(`${form.name.trim()} saved.`)
-    navigate('/organization/branches')
+  function applyApiErrors(error) {
+    const apiErrors = error.response?.data?.errors
+    if (!Array.isArray(apiErrors)) return
+    const fieldErrors = {}
+    apiErrors.forEach((item) => {
+      const key = apiFields[item.field] || item.field
+      if (key && !fieldErrors[key]) fieldErrors[key] = item.message
+    })
+    setErrors((current) => ({ ...current, ...fieldErrors }))
   }
 
-  function saveAnother() {
+  function save(andAnother) {
     if (!validate()) return
-    toast.success(`${form.name.trim()} saved. Add another branch.`)
-    setForm(emptyForm)
+    createBranch.mutate(toBranchBody(form), {
+      onSuccess: (data) => {
+        toast.success(data?.message || `${form.name.trim()} saved.`)
+        if (andAnother) {
+          setForm(emptyForm)
+          setErrors({})
+          return
+        }
+        navigate('/organization/branches')
+      },
+      onError: (error) => {
+        applyApiErrors(error)
+        toast.error(error.response?.data?.message || 'Could not save the branch.')
+      },
+    })
+  }
+
+  function handleSubmit(event) {
+    event.preventDefault()
+    save(false)
   }
 
   return (
@@ -128,12 +184,14 @@ function AddBranchPage() {
             <Field
               label="Branch code"
               value={form.code}
+              error={errors.code}
               placeholder="Enter branch code"
               onChange={(value) => update('code', value)}
             />
             <SelectField
               label="Branch type"
               value={form.type}
+              error={errors.type}
               placeholder="Select branch type"
               options={branchTypes}
               onChange={(value) => update('type', value)}
@@ -142,6 +200,7 @@ function AddBranchPage() {
               label="Opening date"
               type="date"
               value={form.openingDate}
+              error={errors.openingDate}
               onChange={(value) => update('openingDate', value)}
             />
           </FormCard>
@@ -158,12 +217,14 @@ function AddBranchPage() {
             <Field
               label="City / district"
               value={form.city}
+              error={errors.city}
               placeholder="Enter city / district"
               onChange={(value) => update('city', value)}
             />
             <Field
               label="Phone"
               value={form.phone}
+              error={errors.phone}
               placeholder="Enter phone"
               onChange={(value) => update('phone', value)}
             />
@@ -180,7 +241,6 @@ function AddBranchPage() {
           <FormCard title="Management and defaults">
             <SelectField
               label="Branch manager"
-              required
               value={form.manager}
               error={errors.manager}
               placeholder="Select branch manager"
@@ -189,35 +249,31 @@ function AddBranchPage() {
             />
             <SelectField
               label="Default warehouse"
-              required
               value={form.warehouse}
               error={errors.warehouse}
               placeholder="Select default warehouse"
-              options={warehouses}
+              options={[]}
               onChange={(value) => update('warehouse', value)}
             />
             <SelectField
               label="Default shop"
               value={form.shop}
+              error={errors.shop}
               placeholder="Select shop"
-              options={shops}
+              options={[]}
               onChange={(value) => update('shop', value)}
-            />
-            <Field
-              label="Default currency"
-              value={form.currency}
-              placeholder="Enter default currency"
-              onChange={(value) => update('currency', value)}
             />
             <Field
               label="Cost center"
               value={form.costCenter}
+              error={errors.costCenter}
               placeholder="Enter cost center"
               onChange={(value) => update('costCenter', value)}
             />
             <Field
               label="Document prefix"
               value={form.documentPrefix}
+              error={errors.documentPrefix}
               placeholder="Enter document prefix"
               onChange={(value) => update('documentPrefix', value)}
             />
@@ -227,6 +283,7 @@ function AddBranchPage() {
             <SelectField
               label="Document type"
               value={form.documentType}
+              error={errors.documentType}
               placeholder="Select type"
               options={documentTypes}
               onChange={(value) => update('documentType', value)}
@@ -234,25 +291,11 @@ function AddBranchPage() {
             <Field
               label="Document reference"
               value={form.documentReference}
+              error={errors.documentReference}
               placeholder="Enter document reference"
               onChange={(value) => update('documentReference', value)}
             />
-            <label className="block md:col-span-2">
-              <span className="text-sm text-slate-700">Registration / license</span>
-              <span className="mt-1.5 flex items-center gap-3">
-                <input
-                  type="file"
-                  accept=".pdf,.jpg,.jpeg,.png"
-                  onChange={(event) => update('documentName', event.target.files?.[0]?.name || '')}
-                  className="block w-full text-sm text-slate-500 file:mr-3 file:rounded-lg file:border file:border-slate-200 file:bg-white file:px-3 file:py-2 file:text-sm file:font-medium file:text-slate-700"
-                />
-              </span>
-              <p className="mt-1 text-xs text-slate-400">
-                {form.documentName
-                  ? form.documentName
-                  : 'PDF, JPG or PNG · Choose a file to attach supporting evidence.'}
-              </p>
-            </label>
+           
             <label className="block md:col-span-2">
               <span className="text-sm text-slate-700">Internal notes</span>
               <textarea
@@ -269,20 +312,23 @@ function AddBranchPage() {
             <button
               type="button"
               onClick={() => navigate('/organization/branches')}
-              className="cursor-pointer rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700"
+              disabled={createBranch.isPending}
+              className="cursor-pointer rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 disabled:cursor-not-allowed disabled:opacity-60"
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="cursor-pointer rounded-lg bg-[#2f6fed] px-4 py-2 text-sm font-medium text-white"
+              disabled={createBranch.isPending}
+              className="cursor-pointer rounded-lg bg-[#2f6fed] px-4 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-60"
             >
-              Save branch
+              {createBranch.isPending ? 'Saving' : 'Save branch'}
             </button>
             <button
               type="button"
-              onClick={saveAnother}
-              className="cursor-pointer rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700"
+              onClick={() => save(true)}
+              disabled={createBranch.isPending}
+              className="cursor-pointer rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 disabled:cursor-not-allowed disabled:opacity-60"
             >
               Save and add another
             </button>

@@ -1,95 +1,74 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Plus, Search, Users } from 'lucide-react'
 import { Link, useNavigate } from 'react-router-dom'
 import { toast } from 'react-toastify'
 import GlobalTable from '../../components/GlobalTable.jsx'
+import { useBranches } from '../../queries/branches/branches.queries.js'
+
+const limit = 20
 
 const tabs = ['Branches', 'Shops', 'Warehouses', 'Employees', 'Owners', 'Relationships']
 
-const branches = [
-  {
-    id: 'BR-CEN',
-    name: 'Central Branch',
-    manager: 'Omar Khalid',
-    phone: '+1 202 555 0146',
-    location: 'City Center',
-    shops: 3,
-    warehouses: 2,
-    employees: 22,
-    status: 'Active',
-    address: '18 Commerce Avenue, City Center, 10012',
-    access: 'Omar has operational approval access to Central Branch. Warehouse posting remains role restricted.',
-    createdBy: 'Amna Rahman',
-    createdOn: 'Jan 01, 2026',
-    updatedOn: 'Sep 29, 2026',
-    children: [
-      { name: 'Main Warehouse', type: 'Warehouse', code: 'WH-001', status: 'Active' },
-      { name: 'Reserve Warehouse', type: 'Warehouse', code: 'WH-002', status: 'Active' },
-      { name: 'Central Shop', type: 'Shop', code: 'SH-001', status: 'Active' },
-      { name: 'Market Shop', type: 'Shop', code: 'SH-002', status: 'Active' },
-      { name: 'Riverside Shop', type: 'Shop', code: 'SH-003', status: 'Active' },
-    ],
-  },
-  {
-    id: 'BR-NTH',
-    name: 'North Branch',
-    manager: 'Nadia Saleh',
-    phone: '+1 202 555 0190',
-    location: 'North District',
-    shops: 3,
-    warehouses: 2,
-    employees: 14,
-    status: 'Active',
-    address: '42 North Market Road, North District, 10018',
-    access: 'Nadia has operational sign-in access for North Branch. Warehouse and shop visibility use branch scope.',
-    createdBy: 'Amna Rehman',
-    createdOn: 'Feb 12, 2026',
-    updatedOn: 'Aug 14, 2026',
-    children: [
-      { name: 'North Warehouse', type: 'Warehouse', code: 'WH-011', status: 'Active' },
-      { name: 'North Shop', type: 'Shop', code: 'SH-011', status: 'Active' },
-      { name: 'Harbor Shop', type: 'Shop', code: 'SH-012', status: 'Active' },
-    ],
-  },
-  {
-    id: 'BR-AIR',
-    name: 'Airport Branch',
-    manager: 'Lina Abbas',
-    phone: '+1 202 555 0164',
-    location: 'Airport Road',
-    shops: 2,
-    warehouses: 1,
-    employees: 9,
-    status: 'Active',
-    address: '9 Airport Road, Terminal District, 10022',
-    access: 'Lina has operational sign-in access for Airport Branch. Warehouse and shop visibility use branch scope.',
-    createdBy: 'Amna Rehman',
-    createdOn: 'Mar 03, 2026',
-    updatedOn: 'Sep 02, 2026',
-    children: [
-      { name: 'Airport Warehouse', type: 'Warehouse', code: 'WH-021', status: 'Active' },
-      { name: 'Terminal Shop', type: 'Shop', code: 'SH-021', status: 'Active' },
-      { name: 'Departure Shop', type: 'Shop', code: 'SH-022', status: 'Active' },
-    ],
-  },
-  {
-    id: 'BR-WST',
-    name: 'West Branch',
-    manager: 'Unassigned',
-    phone: '—',
-    location: 'West District',
-    shops: 0,
-    warehouses: 0,
-    employees: 0,
-    status: 'Inactive',
-    address: '7 West Avenue, West District, 10030',
-    access: 'No manager is assigned. Warehouse and shop visibility stay limited to this branch.',
-    createdBy: 'Amna Rehman',
-    createdOn: 'Apr 18, 2026',
-    updatedOn: 'Jul 21, 2026',
-    children: [],
-  },
+const statusOptions = [
+  { label: 'All statuses', value: '' },
+  { label: 'Active', value: 'active' },
+  { label: 'Inactive', value: 'inactive' },
 ]
+
+function display(value) {
+  const text = String(value ?? '').trim()
+  return text || '—'
+}
+
+function titleStatus(status) {
+  const value = String(status || '').toLowerCase()
+  if (value === 'active') return 'Active'
+  if (value === 'inactive') return 'Inactive'
+  if (!value) return '—'
+  return value.charAt(0).toUpperCase() + value.slice(1)
+}
+
+function formatDate(value) {
+  if (!value) return '—'
+  return new Date(value).toLocaleDateString('en-US', {
+    month: 'short',
+    day: '2-digit',
+    year: 'numeric',
+  })
+}
+
+function managerName(branch) {
+  if (branch.manager?.name) return branch.manager.name
+  if (branch.managerId && typeof branch.managerId === 'object' && branch.managerId.name) {
+    return branch.managerId.name
+  }
+  return ''
+}
+
+function mapBranch(branch) {
+  const manager = managerName(branch)
+
+  return {
+    id: branch._id,
+    code: display(branch.code),
+    name: display(branch.name),
+    manager: manager || 'Unassigned',
+    phone: display(branch.phone),
+    location: display(branch.location),
+    shops: branch.shopCount ?? '—',
+    warehouses: branch.warehouseCount ?? '—',
+    employees: '—',
+    status: titleStatus(branch.status),
+    address: display(branch.location),
+    access: manager
+      ? `${manager} is assigned to ${branch.name}. Warehouse and shop visibility use branch scope.`
+      : 'No manager is assigned. Warehouse and shop visibility stay limited to this branch.',
+    createdBy: '—',
+    createdOn: formatDate(branch.createdAt),
+    updatedOn: formatDate(branch.updatedAt),
+    children: [],
+  }
+}
 
 const statusClass = {
   Active: 'bg-[#e7f8ee] text-[#1f9d57]',
@@ -106,9 +85,9 @@ function StatusPill({ status }) {
 
 const branchColumns = [
   {
-    key: 'id',
+    key: 'code',
     label: 'CODE',
-    renderCell: (item) => <span className="font-mono text-[12px] text-slate-400">{item.id}</span>,
+    renderCell: (item) => <span className="font-mono text-[12px] text-slate-400">{item.code}</span>,
   },
   {
     key: 'name',
@@ -177,55 +156,35 @@ const childColumns = [
   },
 ]
 
-const directoryColumns = [
-  {
-    key: 'name',
-    label: 'NAME',
-    isRowHeader: true,
-    renderCell: (item) => <span className="text-[13px] font-medium text-slate-800">{item.name}</span>,
-  },
-  {
-    key: 'branch',
-    label: 'BRANCH',
-    renderCell: (item) => <span className="text-[13px] text-slate-600">{item.branch}</span>,
-  },
-  {
-    key: 'code',
-    label: 'CODE',
-    renderCell: (item) => <span className="font-mono text-[12px] text-slate-400">{item.code}</span>,
-  },
-  {
-    key: 'status',
-    label: 'STATUS',
-    renderCell: (item) => <StatusPill status={item.status} />,
-  },
-]
-
 function BranchPage() {
   const navigate = useNavigate()
   const [tab, setTab] = useState('Branches')
+  const [page, setPage] = useState(1)
   const [query, setQuery] = useState('')
-  const [status, setStatus] = useState('All statuses')
-  const [selectedId, setSelectedId] = useState(branches[0].id)
+  const [debouncedSearch, setDebouncedSearch] = useState('')
+  const [status, setStatus] = useState('')
+  const [selectedId, setSelectedId] = useState(null)
 
-  const filtered = useMemo(() => {
-    const needle = query.trim().toLowerCase()
-    return branches.filter((branch) => {
-      const matchesQuery =
-        !needle ||
-        branch.name.toLowerCase().includes(needle) ||
-        branch.id.toLowerCase().includes(needle) ||
-        branch.manager.toLowerCase().includes(needle)
-      const matchesStatus = status === 'All statuses' || branch.status === status
-      return matchesQuery && matchesStatus
-    })
-  }, [query, status])
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(query.trim()), 300)
+    return () => clearTimeout(timer)
+  }, [query])
 
-  const selected = filtered.find((branch) => branch.id === selectedId) || filtered[0] || null
-  const activeCount = branches.filter((branch) => branch.status === 'Active').length
-  const shopCount = branches.reduce((sum, branch) => sum + branch.shops, 0)
-  const warehouseCount = branches.reduce((sum, branch) => sum + branch.warehouses, 0)
-  const branchesWithShops = branches.filter((branch) => branch.shops > 0 && branch.status === 'Active').length
+  useEffect(() => {
+    setPage(1)
+  }, [debouncedSearch, status])
+
+  const branchesQuery = useBranches({ page, limit, search: debouncedSearch, status })
+  const summaryQuery = useBranches({ page: 1, limit, search: '', status: '' })
+  const branches = (branchesQuery.data?.data || []).map(mapBranch)
+  const total = branchesQuery.data?.meta?.total ?? branches.length
+  const summary = branchesQuery.data?.meta?.summary ?? summaryQuery.data?.meta?.summary
+  const selected = branches.find((branch) => branch.id === selectedId) || branches[0] || null
+  const branchTotal = summary?.branches?.total ?? total
+  const activeCount = summary?.branches?.active ?? 0
+  const shopCount = summary?.shops?.total ?? 0
+  const branchesWithShops = summary?.shops?.branchCount ?? 0
+  const warehouseCount = summary?.warehouses?.total ?? 0
 
   return (
     <div className="space-y-4">
@@ -281,10 +240,10 @@ function BranchPage() {
       </div>
 
       <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <Stat label="Branches" value={branches.length} hint={`${activeCount} active`} />
+        <Stat label="Branches" value={branchTotal} hint={`${activeCount} active`} />
         <Stat label="Shops" value={shopCount} hint={`across ${branchesWithShops} branches`} />
-        <Stat label="Warehouses" value={warehouseCount} hint="branch-owned" />
-        <Stat label="Employees" value="46" hint="42 active" />
+        <Stat label="Warehouses" value={warehouseCount} hint={`${summary?.warehouses?.active ?? 0} active`} />
+        <Stat label="Employees" value="—" hint="—" />
       </section>
 
       {tab === 'Branches' ? (
@@ -310,25 +269,35 @@ function BranchPage() {
                   onChange={(event) => setStatus(event.target.value)}
                   className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:border-sky-400"
                 >
-                  <option>All statuses</option>
-                  <option>Active</option>
-                  <option>Inactive</option>
+                  {statusOptions.map((option) => (
+                    <option key={option.label} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
                 </select>
               </div>
               <GlobalTable
                 ariaLabel="Branch register"
                 columns={branchColumns}
-                data={filtered}
+                data={branches}
                 pagination
-                rowsPerPage={8}
+                rowsPerPage={limit}
+                page={page}
+                totalCount={total}
+                onPageChange={setPage}
                 className="!h-auto !max-h-none"
                 contentClassName="min-w-full"
-                emptyContent="No branches match these filters."
+                emptyContent={
+                  branchesQuery.isError
+                    ? branchesQuery.error.response?.data?.message || 'Could not load branches.'
+                    : branchesQuery.isLoading
+                      ? 'Loading branches...'
+                      : 'No branches match these filters.'
+                }
                 summary={
-                  filtered.length
-                    ? `Showing ${filtered.length === branches.length ? 'all ' : ''}${filtered.length} ${
-                        filtered.length === 1 ? 'branch' : 'branches'
-                      }${selected ? ' · 1 selected' : ''}`
+                  total
+                    ? `Showing ${branches.length === total ? 'all ' : ''}${total} ${total === 1 ? 'branch' : 'branches'
+                    }${selected ? ' · 1 selected' : ''}`
                     : undefined
                 }
                 onRowPress={(branch) => setSelectedId(branch.id)}
@@ -397,7 +366,7 @@ function BranchDetail({ branch }) {
         </button>
       </div>
       <div className="mt-1.5 flex flex-wrap items-center gap-2">
-        <p className="text-[12px] text-slate-400">{branch.id} · Branch details</p>
+        <p className="text-[12px] text-slate-400">{branch.code} · Branch details</p>
         <StatusPill status={branch.status} />
       </div>
       <dl className="mt-5 grid grid-cols-2 gap-x-6 gap-y-4">
@@ -435,37 +404,10 @@ function Detail({ label, value }) {
 }
 
 function Directory({ tab }) {
-  const rows =
-    tab === 'Shops' || tab === 'Warehouses'
-      ? branches.flatMap((branch) =>
-          branch.children
-            .filter((child) => child.type === (tab === 'Shops' ? 'Shop' : 'Warehouse'))
-            .map((child) => ({ ...child, id: child.code, branch: branch.name })),
-        )
-      : []
-
-  if (!rows.length) {
-    return (
-      <section className="rounded-2xl border border-slate-200/80 bg-white px-5 py-8 text-center shadow-sm">
-        <h2 className="text-sm font-semibold text-slate-900">{tab}</h2>
-        <p className="mt-1 text-sm text-slate-400">Nothing is configured in this view yet.</p>
-      </section>
-    )
-  }
-
   return (
-    <section className="rounded-2xl border border-slate-200/80 bg-white px-5 py-4 shadow-sm">
+    <section className="rounded-2xl border border-slate-200/80 bg-white px-5 py-8 text-center shadow-sm">
       <h2 className="text-sm font-semibold text-slate-900">{tab}</h2>
-      <p className="mt-0.5 text-xs text-slate-400">{rows.length} records across the branches</p>
-      <GlobalTable
-        ariaLabel={tab}
-        columns={directoryColumns}
-        data={rows}
-        pagination
-        rowsPerPage={8}
-        className="!h-auto max-h-none!"
-        emptyContent={`No ${tab.toLowerCase()} are configured.`}
-      />
+      <p className="mt-1 text-sm text-slate-400">Nothing is configured in this view yet.</p>
     </section>
   )
 }

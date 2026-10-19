@@ -13,4 +13,7 @@ export const queryKeys = {
   permissions: {
     list: (params) => ['permissions', 'list', params],
   },
+  branches: {
+    list: (params) => ['branches', 'list', params],
+  },
 }
