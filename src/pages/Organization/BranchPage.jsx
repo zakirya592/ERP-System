@@ -368,13 +368,12 @@ function BranchDetail({ branch }) {
           >
             View
           </Link>
-          <button
-            type="button"
-            onClick={() => toast.success(`${branch.name} is ready to edit.`)}
+          <Link
+            to={`/organization/branches/${branch.id}/edit`}
             className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-[13px] font-medium text-slate-700"
           >
             Edit
-          </button>
+          </Link>
         </div>
       </div>
       <div className="mt-1.5 flex flex-wrap items-center gap-2">

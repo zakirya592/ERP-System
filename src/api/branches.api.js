@@ -20,3 +20,9 @@ export const createBranch = async (data) => {
 
   return response.data
 }
+
+export const updateBranch = async (id, data) => {
+  const response = await api.patch(`/branches/${id}`, data)
+
+  return response.data
+}

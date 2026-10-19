@@ -3,7 +3,7 @@ import { ArrowLeft, Plus } from 'lucide-react'
 import { Link, useParams } from 'react-router-dom'
 import { toast } from 'react-toastify'
 import GlobalTable from '../../components/GlobalTable.jsx'
-import { useBranch } from '../../queries/branches/branches.queries.js'
+import { useBranch, useUpdateBranchStatus } from '../../queries/branches/branches.queries.js'
 
 
 const statusClass = {
@@ -57,6 +57,7 @@ function relatedName(value) {
 function ViewBranchPage() {
   const { id } = useParams()
   const branchQuery = useBranch(id)
+  const updateStatus = useUpdateBranchStatus()
   const branch = branchQuery.data?.data
   const [selectedId, setSelectedId] = useState(null)
 
@@ -96,13 +97,12 @@ function ViewBranchPage() {
         </div>
         <div className="flex items-center gap-4">
          
-          <button
-            type="button"
-            onClick={() => toast.success(`${branch?.name || 'Branch'} is ready to edit.`)}
+          <Link
+            to={`/organization/branches/${id}/edit`}
             className="rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-sm font-medium text-slate-700"
           >
             Edit Branch
-          </button>
+          </Link>
         </div>
       </div>
 
