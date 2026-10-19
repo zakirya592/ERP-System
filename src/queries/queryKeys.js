@@ -15,5 +15,6 @@ export const queryKeys = {
   },
   branches: {
     list: (params) => ['branches', 'list', params],
+    detail: (id) => ['branches', 'detail', id],
   },
 }

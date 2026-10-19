@@ -23,6 +23,7 @@ import UsersPage from './pages/UsersAndSecurity/Users/UsersPage.jsx'
 import ViewUserPage from './pages/UsersAndSecurity/Users/ViewUserPage.jsx'
 import AddBranchPage from './pages/Organization/AddBranchPage.jsx'
 import BranchPage from './pages/Organization/BranchPage.jsx'
+import ViewBranchPage from './pages/Organization/ViewBranchPage.jsx'
 import ModulePage from './pages/ModulePage.jsx'
 
 function App() {
@@ -33,6 +34,7 @@ function App() {
         <Route path="/dashboard" element={<DashboardPage />} />
         <Route path="/organization/branches" element={<BranchPage />} />
         <Route path="/organization/branches/new" element={<AddBranchPage />} />
+        <Route path="/organization/branches/:id" element={<ViewBranchPage />} />
         <Route path="/sales/sales" element={<SalesPage />} />
         <Route path="/sales/sales/new" element={<NewSalePage />} />
         <Route path="/sales/returns" element={<SalesReturnPage />} />

@@ -93,7 +93,11 @@ const branchColumns = [
     key: 'name',
     label: 'BRANCH',
     isRowHeader: true,
-    renderCell: (item) => <span className="text-[13px] font-medium text-slate-800">{item.name}</span>,
+    renderCell: (item) => (
+      <Link to={`/organization/branches/${item.id}`} className="text-[13px] font-medium text-slate-800 hover:text-[#2f6fed]">
+        {item.name}
+      </Link>
+    ),
   },
   {
     key: 'manager',
@@ -357,13 +361,21 @@ function BranchDetail({ branch }) {
     <aside className="rounded-2xl border border-[#e7eef6] bg-white px-5 py-4 shadow-sm">
       <div className="flex items-start justify-between gap-3">
         <h2 className="text-[16px] font-semibold text-slate-900">{branch.name}</h2>
-        <button
-          type="button"
-          onClick={() => toast.success(`${branch.name} is ready to edit.`)}
-          className="shrink-0 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-[13px] font-medium text-slate-700"
-        >
-          Edit branch
-        </button>
+        <div className="flex shrink-0 items-center gap-2">
+          <Link
+            to={`/organization/branches/${branch.id}`}
+            className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-[13px] font-medium text-slate-700"
+          >
+            View
+          </Link>
+          <button
+            type="button"
+            onClick={() => toast.success(`${branch.name} is ready to edit.`)}
+            className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-[13px] font-medium text-slate-700"
+          >
+            Edit
+          </button>
+        </div>
       </div>
       <div className="mt-1.5 flex flex-wrap items-center gap-2">
         <p className="text-[12px] text-slate-400">{branch.code} · Branch details</p>

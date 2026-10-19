@@ -1,5 +1,5 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { createBranch, getBranches } from '../../api/branches.api'
+import { createBranch, getBranch, getBranches } from '../../api/branches.api'
 import { queryKeys } from '../queryKeys'
 
 export const useBranches = ({ page, limit, search, status }) => {
@@ -7,6 +7,14 @@ export const useBranches = ({ page, limit, search, status }) => {
     queryKey: queryKeys.branches.list({ page, limit, search, status }),
     queryFn: () => getBranches({ page, limit, search, status }),
     placeholderData: keepPreviousData,
+  })
+}
+
+export const useBranch = (id) => {
+  return useQuery({
+    queryKey: queryKeys.branches.detail(id),
+    queryFn: () => getBranch(id),
+    enabled: Boolean(id),
   })
 }
 

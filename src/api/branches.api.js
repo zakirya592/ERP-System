@@ -9,6 +9,12 @@ export const getBranches = async ({ page = 1, limit = 20, search = '', status = 
   return response.data
 }
 
+export const getBranch = async (id) => {
+  const response = await api.get(`/branches/${id}`)
+
+  return response.data
+}
+
 export const createBranch = async (data) => {
   const response = await api.post('/branches', data)
 
