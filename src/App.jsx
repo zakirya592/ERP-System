@@ -25,6 +25,10 @@ import AddBranchPage from './pages/Organization/Branches/AddBranchPage.jsx'
 import UpdateBranchPage from './pages/Organization/Branches/UpdateBranchPage.jsx'
 import BranchPage from './pages/Organization/Branches/BranchPage.jsx'
 import ViewBranchPage from './pages/Organization/Branches/ViewBranchPage.jsx'
+import AddShopPage from './pages/Organization/Shops/AddShopPage.jsx'
+import EditShopPage from './pages/Organization/Shops/EditShopPage.jsx'
+import ShopPage from './pages/Organization/Shops/ShopPage.jsx'
+import ViewShopPage from './pages/Organization/Shops/ViewShopPage.jsx'
 import ModulePage from './pages/ModulePage.jsx'
 
 function App() {
@@ -37,6 +41,10 @@ function App() {
         <Route path="/organization/branches/new" element={<AddBranchPage />} />
         <Route path="/organization/branches/:id/edit" element={<UpdateBranchPage />} />
         <Route path="/organization/branches/:id" element={<ViewBranchPage />} />
+        <Route path="/organization/shop/new" element={<AddShopPage />} />
+        <Route path="/organization/shop/:id/edit" element={<EditShopPage />} />
+        <Route path="/organization/shop/:id" element={<ViewShopPage />} />
+        <Route path="/organization/shop" element={<ShopPage />} />
         <Route path="/sales/sales" element={<SalesPage />} />
         <Route path="/sales/sales/new" element={<NewSalePage />} />
         <Route path="/sales/returns" element={<SalesReturnPage />} />

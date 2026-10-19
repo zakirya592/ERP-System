@@ -231,7 +231,13 @@ function BranchPage() {
           <button
             key={item}
             type="button"
-            onClick={() => setTab(item)}
+            onClick={() => {
+              if (item === 'Shops') {
+                navigate('/organization/shop')
+                return
+              }
+              setTab(item)
+            }}
             className={
               tab === item
                 ? 'rounded-lg bg-[#e8f1ff] px-3 py-1.5 text-sm font-medium text-[#2f6fed]'
