@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react'
-import { ArrowLeft, Check, ChevronDown } from 'lucide-react'
+import { Check, ChevronDown } from 'lucide-react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { toast } from 'react-toastify'
-import { useBranch, useUpdateBranch, useUpdateBranchStatus } from '../../queries/branches/branches.queries.js'
-import { useUsers } from '../../queries/users/users.queries.js'
+import { useBranch, useUpdateBranch, useUpdateBranchStatus } from '../../../queries/branches/branches.queries.js'
+import { useUsers } from '../../../queries/users/users.queries.js'
 
 const branchTypes = [
   { value: 'head_office', label: 'Head office' },

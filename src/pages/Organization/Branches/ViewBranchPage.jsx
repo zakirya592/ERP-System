@@ -2,8 +2,8 @@ import { useState } from 'react'
 import { ArrowLeft, Plus } from 'lucide-react'
 import { Link, useParams } from 'react-router-dom'
 import { toast } from 'react-toastify'
-import GlobalTable from '../../components/GlobalTable.jsx'
-import { useBranch, useUpdateBranchStatus } from '../../queries/branches/branches.queries.js'
+import GlobalTable from '../../../components/GlobalTable.jsx'
+import { useBranch, useUpdateBranchStatus } from '../../../queries/branches/branches.queries.js'
 
 
 const statusClass = {

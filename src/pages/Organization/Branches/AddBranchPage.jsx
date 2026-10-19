@@ -2,8 +2,8 @@ import { useState } from 'react'
 import { ArrowLeft, Check, ChevronDown } from 'lucide-react'
 import { Link, useNavigate } from 'react-router-dom'
 import { toast } from 'react-toastify'
-import { useCreateBranch } from '../../queries/branches/branches.queries.js'
-import { useUsers } from '../../queries/users/users.queries.js'
+import { useCreateBranch } from '../../../queries/branches/branches.queries.js'
+import { useUsers } from '../../../queries/users/users.queries.js'
 
 const branchTypes = [
   { value: 'head_office', label: 'Head office' },

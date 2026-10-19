@@ -2,8 +2,8 @@ import { useEffect, useState } from 'react'
 import { Plus, Search, Users } from 'lucide-react'
 import { Link, useNavigate } from 'react-router-dom'
 import { toast } from 'react-toastify'
-import GlobalTable from '../../components/GlobalTable.jsx'
-import { useBranches } from '../../queries/branches/branches.queries.js'
+import GlobalTable from '../../../components/GlobalTable.jsx'
+import { useBranches } from '../../../queries/branches/branches.queries.js'
 
 const limit = 20
 
