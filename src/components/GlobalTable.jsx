@@ -14,6 +14,8 @@ function GlobalTable({
   totalCount = undefined,
   page: pageProp = undefined,
   onPageChange = undefined,
+  summary,
+  contentClassName = 'min-w-300',
 }) {
   const [internalPage, setInternalPage] = useState(1)
 
@@ -77,7 +79,7 @@ function GlobalTable({
   return (
     <Table className={`h-88 max-h-88 w-full overflow-auto bg-white px-3 pt-2 pb-3 ${className}`}>
       <Table.ScrollContainer className="overflow-x-auto">
-        <Table.Content aria-label={ariaLabel} className="min-w-300">
+        <Table.Content aria-label={ariaLabel} className={contentClassName}>
           <Table.Header className="bg-white">
             {columns.map((column) => (
               <Table.Column
@@ -131,7 +133,7 @@ function GlobalTable({
         <Table.Footer>
           <Pagination size="sm">
             <Pagination.Summary>
-              {start} to {end} of {effectiveTotal} results
+              {summary || `${start} to ${end} of ${effectiveTotal} results`}
             </Pagination.Summary>
 
             <Pagination.Content>
