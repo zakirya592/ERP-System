@@ -3,7 +3,9 @@ import { Check, ChevronDown } from 'lucide-react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { toast } from 'react-toastify'
 import { useBranch, useUpdateBranch, useUpdateBranchStatus } from '../../../queries/branches/branches.queries.js'
+import { useShops } from '../../../queries/shops/shops.queries.js'
 import { useUsers } from '../../../queries/users/users.queries.js'
+import { useWarehouses } from '../../../queries/warehouses/warehouses.queries.js'
 
 const branchTypes = [
   { value: 'head_office', label: 'Head office' },
@@ -15,8 +17,6 @@ const statuses = [
   { value: 'active', label: 'Active' },
   { value: 'inactive', label: 'Inactive' },
 ]
-const documentTypes = ['Registration', 'License', 'Lease agreement', 'Tax certificate']
-
 const apiFields = {
   branchType: 'type',
   location: 'city',
@@ -24,8 +24,7 @@ const apiFields = {
   defaultWarehouseId: 'warehouse',
   defaultShopId: 'shop',
   costCentre: 'costCenter',
-  'document.type': 'documentType',
-  'document.reference': 'documentReference',
+  openingDate: 'openingDate',
 }
 
 const steps = [
@@ -39,7 +38,6 @@ const emptyForm = {
   name: '',
   code: '',
   type: 'head_office',
-  openingDate: '',
   address: '',
   city: '',
   phone: '',
@@ -50,9 +48,7 @@ const emptyForm = {
   status: 'active',
   costCenter: '',
   documentPrefix: '',
-  documentType: '',
-  documentReference: '',
-  notes: '',
+  openingDate: '',
 }
 
 function idOf(value) {
@@ -63,7 +59,32 @@ function idOf(value) {
 
 function dateInput(value) {
   if (!value) return ''
-  return String(value).slice(0, 10)
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return String(value).slice(0, 10)
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${date.getFullYear()}-${month}-${day}`
+}
+
+function todayInput() {
+  return dateInput(new Date())
+}
+
+function relatedName(value) {
+  if (!value || typeof value !== 'object') return ''
+  return value.name || value.code || ''
+}
+
+function recordOptions(records) {
+  return (records || []).flatMap((item) => {
+    if (!item?._id) return []
+    return [{ value: item._id, label: item.name || item.code || item._id }]
+  })
+}
+
+function withCurrent(options, value, label) {
+  if (!value || options.some((option) => option.value === value)) return options
+  return [{ value, label: label || value }, ...options]
 }
 
 function nullableId(value) {
@@ -76,7 +97,7 @@ function toBranchBody(form) {
     name: form.name.trim(),
     code: form.code.trim(),
     branchType: form.type || 'head_office',
-    openingDate: form.openingDate || null,
+    openingDate: form.openingDate || todayInput(),
     phone: form.phone.trim(),
     email: form.email.trim(),
     location: form.city.trim(),
@@ -87,11 +108,6 @@ function toBranchBody(form) {
     status: form.status || 'active',
     costCentre: form.costCenter.trim(),
     documentPrefix: form.documentPrefix.trim(),
-    document: {
-      type: form.documentType.trim(),
-      reference: form.documentReference.trim(),
-    },
-    notes: form.notes.trim(),
   }
 }
 
@@ -102,6 +118,8 @@ function UpdateBranchPage() {
   const updateBranch = useUpdateBranch()
   const updateStatus = useUpdateBranchStatus()
   const usersQuery = useUsers({ page: 1, limit: 100, search: '', status: '' })
+  const warehousesQuery = useWarehouses({ page: 1, limit: 100, search: '', status: 'active', branchId: '' })
+  const shopsQuery = useShops({ page: 1, limit: 100, search: '', status: 'active', branchId: '' })
   const branch = branchQuery.data?.data
   const [form, setForm] = useState(emptyForm)
   const [ready, setReady] = useState(false)
@@ -110,14 +128,22 @@ function UpdateBranchPage() {
     value: user._id,
     label: user.name || user.email,
   }))
-
+  const warehouses = withCurrent(
+    recordOptions(warehousesQuery.data?.data),
+    form.warehouse,
+    relatedName(branch?.defaultWarehouse || branch?.defaultWarehouseId),
+  )
+  const shops = withCurrent(
+    recordOptions(shopsQuery.data?.data),
+    form.shop,
+    relatedName(branch?.defaultShop || branch?.defaultShopId),
+  )
   useEffect(() => {
     if (!branch || ready) return
     setForm({
       name: branch.name || '',
       code: branch.code || '',
       type: branch.branchType || 'head_office',
-      openingDate: dateInput(branch.openingDate),
       address: branch.address || '',
       city: branch.location || '',
       phone: branch.phone || '',
@@ -128,9 +154,7 @@ function UpdateBranchPage() {
       status: branch.status || 'active',
       costCenter: branch.costCentre || '',
       documentPrefix: branch.documentPrefix || '',
-      documentType: branch.document?.type || '',
-      documentReference: branch.document?.reference || '',
-      notes: branch.notes || '',
+      openingDate: dateInput(branch.openingDate) || todayInput(),
     })
     setReady(true)
   }, [branch, ready])
@@ -145,6 +169,7 @@ function UpdateBranchPage() {
     if (!form.name.trim()) nextErrors.name = 'Enter a branch name.'
     if (!form.address.trim()) nextErrors.address = 'Enter an address.'
     if (form.email.trim() && !form.email.includes('@')) nextErrors.email = 'Enter a valid email.'
+    if (!form.openingDate) nextErrors.openingDate = 'Enter an opening date.'
     setErrors(nextErrors)
     return Object.keys(nextErrors).length === 0
   }
@@ -201,9 +226,6 @@ function UpdateBranchPage() {
   const typeOptions = branchTypes.some((option) => option.value === form.type)
     ? branchTypes
     : [...branchTypes, { value: form.type, label: form.type }]
-  const documentOptions = !form.documentType || documentTypes.includes(form.documentType)
-    ? documentTypes
-    : [form.documentType, ...documentTypes]
 
   return (
     <form className="space-y-4" onSubmit={handleSubmit}>
@@ -323,7 +345,7 @@ function UpdateBranchPage() {
                 value={form.warehouse}
                 error={errors.warehouse}
                 placeholder="Select default warehouse"
-                options={[]}
+                options={warehouses}
                 onChange={(value) => update('warehouse', value)}
               />
               <SelectField
@@ -331,7 +353,7 @@ function UpdateBranchPage() {
                 value={form.shop}
                 error={errors.shop}
                 placeholder="Select shop"
-                options={[]}
+                options={shops}
                 onChange={(value) => update('shop', value)}
               />
               <SelectField
@@ -355,35 +377,12 @@ function UpdateBranchPage() {
                 placeholder="Enter document prefix"
                 onChange={(value) => update('documentPrefix', value)}
               />
-            </FormCard>
-
-            <FormCard title="Documents and notes">
-              <SelectField
-                label="Document type"
-                value={form.documentType}
-                error={errors.documentType}
-                placeholder="Select type"
-                options={documentOptions}
-                onChange={(value) => update('documentType', value)}
-              />
-              <Field
-                label="Document reference"
-                value={form.documentReference}
-                error={errors.documentReference}
-                placeholder="Enter document reference"
-                onChange={(value) => update('documentReference', value)}
-              />
-              <label className="block md:col-span-2">
-                <span className="text-sm text-slate-700">Internal notes</span>
-                <textarea
-                  value={form.notes}
-                  rows={3}
-                  placeholder="Add remarks for authorized workspace administrators"
-                  onChange={(event) => update('notes', event.target.value)}
-                  className="mt-1.5 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 outline-none placeholder:text-slate-400 focus:border-sky-400"
-                />
-                {errors.notes && <p className="mt-1 text-xs text-rose-500">{errors.notes}</p>}
-              </label>
+              {(warehousesQuery.isError || shopsQuery.isError) && (
+                <p className="text-[13px] text-rose-500 md:col-span-2">
+                  {warehousesQuery.isError ? 'Could not load warehouses. ' : ''}
+                  {shopsQuery.isError ? 'Could not load shops.' : ''}
+                </p>
+              )}
             </FormCard>
 
             <div className="flex flex-wrap items-center gap-2">

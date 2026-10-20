@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react'
-import { Plus, Search, Users } from 'lucide-react'
+import { Eye, Pencil, Plus, Search, Users } from 'lucide-react'
 import { Link, useNavigate } from 'react-router-dom'
 import { toast } from 'react-toastify'
 import GlobalTable from '../../../components/GlobalTable.jsx'
-import { useBranches } from '../../../queries/branches/branches.queries.js'
+import { useBranch, useBranches, useUpdateBranchStatus } from '../../../queries/branches/branches.queries.js'
 
 const limit = 20
 
@@ -24,6 +24,14 @@ function titleStatus(status) {
   const value = String(status || '').toLowerCase()
   if (value === 'active') return 'Active'
   if (value === 'inactive') return 'Inactive'
+  if (!value) return '—'
+  return value.charAt(0).toUpperCase() + value.slice(1)
+}
+
+function titleType(type) {
+  const value = String(type || '').toLowerCase()
+  if (value === 'warehouse') return 'Warehouse'
+  if (value === 'shop') return 'Shop'
   if (!value) return '—'
   return value.charAt(0).toUpperCase() + value.slice(1)
 }
@@ -59,6 +67,7 @@ function mapBranch(branch) {
     warehouses: branch.warehouseCount ?? '—',
     employees: '—',
     status: titleStatus(branch.status),
+    statusValue: String(branch.status || '').toLowerCase(),
     address: display(branch.location),
     access: manager
       ? `${manager} is assigned to ${branch.name}. Warehouse and shop visibility use branch scope.`
@@ -66,7 +75,6 @@ function mapBranch(branch) {
     createdBy: '—',
     createdOn: formatDate(branch.createdAt),
     updatedOn: formatDate(branch.updatedAt),
-    children: [],
   }
 }
 
@@ -83,7 +91,8 @@ function StatusPill({ status }) {
   )
 }
 
-const branchColumns = [
+function branchColumns(onView, onEdit) {
+  return [
   {
     key: 'code',
     label: 'CODE',
@@ -128,7 +137,34 @@ const branchColumns = [
     label: 'STATUS',
     renderCell: (item) => <StatusPill status={item.status} />,
   },
-]
+  {
+    key: 'actions',
+    label: 'ACTIONS',
+    className: 'text-right',
+    cellClassName: 'text-right',
+    renderCell: (item) => (
+      <div className="flex justify-end gap-1">
+        <button
+          type="button"
+          aria-label={`View ${item.name}`}
+          onClick={() => onView(item)}
+          className="inline-flex cursor-pointer items-center justify-center rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 hover:text-[#2563eb]"
+        >
+          <Eye size={16} />
+        </button>
+        <button
+          type="button"
+          aria-label={`Edit ${item.name}`}
+          onClick={() => onEdit(item)}
+          className="inline-flex cursor-pointer items-center justify-center rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 hover:text-[#2563eb]"
+        >
+          <Pencil size={16} />
+        </button>
+      </div>
+    ),
+  },
+  ]
+}
 
 const childColumns = [
   {
@@ -180,15 +216,46 @@ function BranchPage() {
 
   const branchesQuery = useBranches({ page, limit, search: debouncedSearch, status })
   const summaryQuery = useBranches({ page: 1, limit, search: '', status: '' })
+  const updateStatus = useUpdateBranchStatus()
+  const detailQuery = useBranch(selectedId)
   const branches = (branchesQuery.data?.data || []).map(mapBranch)
   const total = branchesQuery.data?.meta?.total ?? branches.length
   const summary = branchesQuery.data?.meta?.summary ?? summaryQuery.data?.meta?.summary
   const selected = branches.find((branch) => branch.id === selectedId) || branches[0] || null
+
+  useEffect(() => {
+    if (selectedId && branches.some((branch) => branch.id === selectedId)) return
+    if (branches[0]) setSelectedId(branches[0].id)
+  }, [branches, selectedId])
   const branchTotal = summary?.branches?.total ?? total
   const activeCount = summary?.branches?.active ?? 0
   const shopCount = summary?.shops?.total ?? 0
   const branchesWithShops = summary?.shops?.branchCount ?? 0
   const warehouseCount = summary?.warehouses?.total ?? 0
+
+  function viewBranch(branch) {
+    navigate(`/organization/branches/${branch.id}`)
+  }
+
+  function editBranch(branch) {
+    navigate(`/organization/branches/${branch.id}/edit`)
+  }
+
+  function changeStatus(nextStatus) {
+    if (!selected?.id || selected.statusValue === nextStatus || updateStatus.isPending) return
+    updateStatus.mutate(
+      { id: selected.id, status: nextStatus },
+      {
+        onSuccess: (data) => {
+          const label = statusOptions.find((option) => option.value === nextStatus)?.label || nextStatus
+          toast.success(data?.message || `${selected.name} is now ${label}.`)
+        },
+        onError: (error) => {
+          toast.error(error.response?.data?.message || 'Could not update the branch status.')
+        },
+      },
+    )
+  }
 
   return (
     <div className="space-y-4">
@@ -210,7 +277,7 @@ function BranchPage() {
           <button
             type="button"
             onClick={() => toast.success('People and parties opened.')}
-            className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-sm font-medium text-slate-700"
+            className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-sm font-medium text-slate-700 cursor-pointer"
           >
             <Users size={15} />
             People & Parties
@@ -218,7 +285,7 @@ function BranchPage() {
           <button
             type="button"
             onClick={() => navigate('/organization/branches/new')}
-            className="inline-flex items-center gap-2 rounded-lg bg-[#2f6fed] px-3.5 py-2 text-sm font-medium text-white"
+            className="inline-flex items-center gap-2 rounded-lg bg-[#2f6fed] px-3.5 py-2 text-sm font-medium text-white cursor-pointer"
           >
             <Plus size={15} />
             Add Branch
@@ -300,7 +367,7 @@ function BranchPage() {
               </div>
               <GlobalTable
                 ariaLabel="Branch register"
-                columns={branchColumns}
+                columns={branchColumns(viewBranch, editBranch)}
                 data={branches}
                 pagination
                 rowsPerPage={limit}
@@ -329,10 +396,29 @@ function BranchPage() {
               />
             </section>
 
-            <LocationHierarchy locations={selected?.children || []} />
+            <LocationHierarchy
+              locations={(detailQuery.data?.data?.locations || []).map((location) => ({
+                id: location._id,
+                name: display(location.name),
+                type: titleType(location.type),
+                code: display(location.code),
+                status: titleStatus(location.status),
+              }))}
+              emptyContent={
+                !selected
+                  ? 'Select a branch to see its shops and warehouses.'
+                  : detailQuery.isLoading
+                    ? 'Loading locations...'
+                    : detailQuery.isError
+                      ? detailQuery.error.response?.data?.message || 'Could not load shops and warehouses.'
+                      : 'This branch has no shops or warehouses.'
+              }
+            />
           </div>
 
-          {selected ? <BranchDetail branch={selected} /> : null}
+          {selected ? (
+            <BranchDetail branch={selected} statusPending={updateStatus.isPending} onStatusChange={changeStatus} />
+          ) : null}
         </div>
       ) : (
         <Directory tab={tab} />
@@ -341,9 +427,7 @@ function BranchPage() {
   )
 }
 
-function LocationHierarchy({ locations }) {
-  const rows = locations.map((location) => ({ ...location, id: location.code }))
-
+function LocationHierarchy({ locations, emptyContent }) {
   return (
     <section className="overflow-hidden rounded-2xl border border-[#e7eef6] bg-white shadow-sm">
       <div className="bg-[#eef4ff] px-4 py-3">
@@ -355,10 +439,10 @@ function LocationHierarchy({ locations }) {
       <GlobalTable
         ariaLabel="Location hierarchy"
         columns={childColumns}
-        data={rows}
+        data={locations}
         className="h-auto! max-h-none!"
         contentClassName="min-w-full"
-        emptyContent="This branch has no shops or warehouses."
+        emptyContent={emptyContent}
       />
     </section>
   )
@@ -374,30 +458,18 @@ function Stat({ label, value, hint }) {
   )
 }
 
-function BranchDetail({ branch }) {
+function BranchDetail({ branch, statusPending, onStatusChange }) {
   return (
     <aside className="rounded-2xl border border-[#e7eef6] bg-white px-5 py-4 shadow-sm">
       <div className="flex items-start justify-between gap-3">
         <h2 className="text-[16px] font-semibold text-slate-900">{branch.name}</h2>
-        <div className="flex shrink-0 items-center gap-2">
-          <Link
-            to={`/organization/branches/${branch.id}`}
-            className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-[13px] font-medium text-slate-700"
-          >
-            View
-          </Link>
-          <Link
-            to={`/organization/branches/${branch.id}/edit`}
-            className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-[13px] font-medium text-slate-700"
-          >
-            Edit
-          </Link>
-        </div>
+        
       </div>
       <div className="mt-1.5 flex flex-wrap items-center gap-2">
         <p className="text-[12px] text-slate-400">{branch.code} · Branch details</p>
         <StatusPill status={branch.status} />
       </div>
+      <StatusSwitcher value={branch.statusValue} pending={statusPending} onChange={onStatusChange} />
       <dl className="mt-5 grid grid-cols-2 gap-x-6 gap-y-4">
         <Detail label="Manager" value={branch.manager} />
         <Detail label="Phone" value={branch.phone} />
@@ -420,6 +492,34 @@ function BranchDetail({ branch }) {
         <Detail label="Last updated" value={branch.updatedOn} />
       </dl>
     </aside>
+  )
+}
+
+function StatusSwitcher({ value, pending, onChange }) {
+  return (
+    <div className="mt-4">
+      <p className="text-[12px] font-medium text-slate-400">Branch status</p>
+      <div className="mt-2 grid grid-cols-2 gap-1 rounded-xl bg-slate-100 p-1">
+        {statusOptions
+          .filter((option) => option.value)
+          .map((option) => {
+            const selected = value === option.value
+            return (
+              <button
+                key={option.value}
+                type="button"
+                disabled={pending}
+                onClick={() => onChange(option.value)}
+                className={`cursor-pointer rounded-lg px-1 py-1.5 text-[12px] font-medium disabled:cursor-not-allowed disabled:opacity-60 ${
+                  selected ? `${statusClass[option.label]} shadow-sm` : 'text-slate-500 hover:bg-white'
+                }`}
+              >
+                {option.label}
+              </button>
+            )
+          })}
+      </div>
+    </div>
   )
 }
 

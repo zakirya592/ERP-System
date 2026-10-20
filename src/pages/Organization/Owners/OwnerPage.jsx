@@ -378,7 +378,7 @@ function OwnerPage() {
               <option value="Active">Active</option>
               <option value="Inactive">Inactive</option>
             </select>
-            <button type="button" onClick={clearFilters} className="px-2 py-2 text-sm font-medium text-[#2f6fed] lg:ml-auto">
+            <button type="button" onClick={clearFilters} className="cursor-pointer px-2 py-2 text-sm font-medium text-[#2f6fed] lg:ml-auto">
               Clear filters
             </button>
           </div>

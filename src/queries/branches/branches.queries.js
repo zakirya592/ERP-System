@@ -1,5 +1,5 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { createBranch, getBranch, getBranches, updateBranch } from '../../api/branches.api'
+import { createBranch, getBranch, getBranches, updateBranch, updateBranchStatus } from '../../api/branches.api'
 import { queryKeys } from '../queryKeys'
 
 export const useBranches = ({ page, limit, search, status }) => {

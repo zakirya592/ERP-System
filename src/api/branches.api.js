@@ -26,3 +26,9 @@ export const updateBranch = async (id, data) => {
 
   return response.data
 }
+
+export const updateBranchStatus = async (id, status) => {
+  const response = await api.patch(`/branches/${id}/status`, { status })
+
+  return response.data
+}

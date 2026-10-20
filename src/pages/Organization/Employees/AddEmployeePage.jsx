@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ArrowLeft, ChevronDown } from 'lucide-react'
+import { ChevronDown } from 'lucide-react'
 import { Link, useNavigate } from 'react-router-dom'
 import { toast } from 'react-toastify'
 import { useBranches } from '../../../queries/branches/branches.queries.js'
@@ -131,10 +131,7 @@ function AddEmployeePage() {
             Manage employee profiles, reporting lines, workplace assignments and ERP access.
           </p>
         </div>
-        <Link to="/organization/employees" className="inline-flex items-center gap-1.5 text-sm font-medium text-[#2f6fed]">
-          <ArrowLeft size={15} />
-          Back to Employees
-        </Link>
+      
       </div>
 
       <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">

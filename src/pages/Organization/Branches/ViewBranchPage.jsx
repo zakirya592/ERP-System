@@ -1,9 +1,8 @@
 import { useState } from 'react'
-import { ArrowLeft, Plus } from 'lucide-react'
-import { Link, useParams } from 'react-router-dom'
-import { toast } from 'react-toastify'
+import { Plus } from 'lucide-react'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import GlobalTable from '../../../components/GlobalTable.jsx'
-import { useBranch, useUpdateBranchStatus } from '../../../queries/branches/branches.queries.js'
+import { useBranch } from '../../../queries/branches/branches.queries.js'
 
 
 const statusClass = {
@@ -56,8 +55,8 @@ function relatedName(value) {
 
 function ViewBranchPage() {
   const { id } = useParams()
+  const navigate = useNavigate()
   const branchQuery = useBranch(id)
-  const updateStatus = useUpdateBranchStatus()
   const branch = branchQuery.data?.data
   const [selectedId, setSelectedId] = useState(null)
 
@@ -123,8 +122,8 @@ function ViewBranchPage() {
             <Stat label="Warehouses" value={summary?.warehouses?.total ?? '—'} />
           </section>
 
-          <div className="grid grid-cols-3 sm:grid-cols-1 items-start gap-4">
-            <section className="rounded-2xl border col-span-2 sm:col-span-1 border-slate-200/80 bg-white px-5 py-4 shadow-sm">
+          <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
+            <section className="rounded-2xl border border-slate-200/80 bg-white px-5 py-4 shadow-sm">
               <h2 className="text-base font-semibold text-slate-900">Branch information</h2>
               <p className="mt-0.5 text-sm text-slate-400">Profile, assignment and operating defaults</p>
 
@@ -138,7 +137,7 @@ function ViewBranchPage() {
               <Section title="Address and contact">
                 <Fact label="Address" value={display(branch.address)} />
                 <Fact label="City / district" value={display(branch.location)} />
-                <Fact label="Phone" value={display(branch.phone)} muted={!branch.phone} />
+                <Fact label="Phone" value={branch.phone ? display(branch.phone) : 'Enter business phone'} muted={!branch.phone} />
                 <Fact label="Email" value={display(branch.email)} />
               </Section>
 
@@ -147,19 +146,12 @@ function ViewBranchPage() {
                 <Fact label="Default warehouse" value={relatedName(branch.defaultWarehouse || branch.defaultWarehouseId)} />
                 <Fact label="Default shop" value={relatedName(branch.defaultShop || branch.defaultShopId)} />
                 <Fact label="Status" value={titleStatus(branch.status)} />
-                <Fact label="Cost center" value={display(branch.costCentre)} />
+                <Fact label="Cost centre" value={display(branch.costCentre)} />
                 <Fact label="Document prefix" value={display(branch.documentPrefix)} />
-              </Section>
-
-              <Section title="Documents and notes">
-                <Fact label="Document type" value={display(branch.document?.type)} />
-                <Fact label="Document reference" value={display(branch.document?.reference)} />
-                <Fact label="File" value={display(branch.document?.fileName)} />
-                <Fact label="Notes" value={display(branch.notes)} />
               </Section>
             </section>
 
-            <aside className="rounded-2xl border col-span-1 sm:col-span-1 border-slate-200/80 bg-white px-5 py-5 shadow-sm">
+            <aside className="rounded-2xl border border-slate-200/80 bg-white px-5 py-5 shadow-sm xl:sticky xl:top-4">
               <h2 className="text-[18px] font-semibold text-slate-900">{branch.name}</h2>
               <p className="mt-2 text-[13px] text-slate-400">{display(branch.code)}</p>
               <div className="mt-3">
@@ -208,9 +200,9 @@ function ViewBranchPage() {
           </section>
 
           <div className="flex flex-wrap gap-2">
-            <ActionButton label="Add Shop" />
-            <ActionButton label="Add Warehouse" />
-            <ActionButton label="Assign Employee" />
+            <ActionButton label="Add Shop" onClick={() => navigate('/organization/shop/new')} />
+            <ActionButton label="Add Warehouse" onClick={() => navigate('/organization/warehouses/new')} />
+            <ActionButton label="Assign Employee" onClick={() => navigate('/organization/employees/new')} />
           </div>
         </>
       )}
@@ -257,7 +249,7 @@ function StatusPill({ status }) {
 
 function Stat({ label, value }) {
   return (
-    <article className="rounded-xl border border-slate-200/80 bg-white px-5 py-4">
+    <article className="rounded-2xl border border-slate-200/80 bg-white px-5 py-4 shadow-sm">
       <p className="text-sm text-slate-500">{label}</p>
       <p className="mt-3 text-[28px] leading-none font-semibold tracking-tight text-slate-900">{value}</p>
     </article>
@@ -277,7 +269,7 @@ function Fact({ label, value, muted = false }) {
   return (
     <div className="min-w-0">
       <p className="text-[12px] text-slate-400">{label}</p>
-      <p className={`mt-1 truncate text-[14px] font-medium ${muted ? 'text-slate-400' : 'text-slate-800'}`}>{value}</p>
+      <p className={`mt-1 text-[14px] font-medium wrap-break-word ${muted ? 'text-slate-400' : 'text-slate-800'}`}>{value}</p>
     </div>
   )
 }
@@ -299,12 +291,12 @@ function Panel({ children, className = '' }) {
   )
 }
 
-function ActionButton({ label }) {
+function ActionButton({ label, onClick }) {
   return (
     <button
       type="button"
-      onClick={() => toast.success(`${label} opened.`)}
-      className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-sm font-medium text-slate-700"
+      onClick={onClick}
+      className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-sm font-medium text-slate-700"
     >
       <Plus size={14} />
       {label}

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Download, Plus, Search } from 'lucide-react'
+import { Download, Eye, Pencil, Plus, Search } from 'lucide-react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { toast } from 'react-toastify'
 import GlobalTable from '../../../components/GlobalTable.jsx'
@@ -61,12 +61,22 @@ function shopColumns(onView, onEdit) {
       className: 'text-right',
       cellClassName: 'text-right',
       renderCell: (item) => (
-        <div className="flex justify-end gap-3">
-          <button type="button" onClick={() => onView(item)} className="cursor-pointer text-[13px] font-medium text-[#2f6fed]">
-            View
+        <div className="flex justify-end gap-1">
+          <button
+            type="button"
+            aria-label={`View ${item.name}`}
+            onClick={() => onView(item)}
+            className="inline-flex cursor-pointer items-center justify-center rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 hover:text-[#2563eb]"
+          >
+            <Eye size={16} />
           </button>
-          <button type="button" onClick={() => onEdit(item)} className="cursor-pointer text-[13px] font-medium text-[#2f6fed]">
-            Edit
+          <button
+            type="button"
+            aria-label={`Update ${item.name}`}
+            onClick={() => onEdit(item)}
+            className="inline-flex cursor-pointer items-center justify-center rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 hover:text-[#2563eb]"
+          >
+            <Pencil size={16} />
           </button>
         </div>
       ),
@@ -297,7 +307,7 @@ function ShopPage() {
                 </option>
               ))}
             </select>
-            <button type="button" onClick={clearFilters} className="px-2 py-2 text-sm font-medium text-[#2f6fed] lg:ml-auto">
+            <button type="button" onClick={clearFilters} className="cursor-pointer px-2 py-2 text-sm font-medium text-[#2f6fed] lg:ml-auto">
               Clear filters
             </button>
           </div>

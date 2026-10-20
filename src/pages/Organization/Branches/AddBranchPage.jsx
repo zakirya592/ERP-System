@@ -1,9 +1,11 @@
 import { useState } from 'react'
-import { ArrowLeft, Check, ChevronDown } from 'lucide-react'
+import { Check, ChevronDown } from 'lucide-react'
 import { Link, useNavigate } from 'react-router-dom'
 import { toast } from 'react-toastify'
 import { useCreateBranch } from '../../../queries/branches/branches.queries.js'
+import { useShops } from '../../../queries/shops/shops.queries.js'
 import { useUsers } from '../../../queries/users/users.queries.js'
+import { useWarehouses } from '../../../queries/warehouses/warehouses.queries.js'
 
 const branchTypes = [
   { value: 'head_office', label: 'Head office' },
@@ -11,8 +13,6 @@ const branchTypes = [
   { value: 'distribution', label: 'Distribution' },
   { value: 'regional_office', label: 'Regional office' },
 ]
-const documentTypes = ['Registration', 'License', 'Lease agreement', 'Tax certificate']
-
 const apiFields = {
   branchType: 'type',
   location: 'city',
@@ -20,8 +20,7 @@ const apiFields = {
   defaultWarehouseId: 'warehouse',
   defaultShopId: 'shop',
   costCentre: 'costCenter',
-  'document.type': 'documentType',
-  'document.reference': 'documentReference',
+  openingDate: 'openingDate',
 }
 
 const steps = [
@@ -35,7 +34,6 @@ const emptyForm = {
   name: '',
   code: '',
   type: 'head_office',
-  openingDate: '',
   address: '',
   city: '',
   phone: '',
@@ -45,9 +43,7 @@ const emptyForm = {
   shop: '',
   costCenter: '',
   documentPrefix: '',
-  documentType: '',
-  documentReference: '',
-  notes: '',
+  openingDate: '',
 }
 
 function nullableId(value) {
@@ -55,12 +51,26 @@ function nullableId(value) {
   return text || null
 }
 
+function todayInput() {
+  const date = new Date()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${date.getFullYear()}-${month}-${day}`
+}
+
+function recordOptions(records) {
+  return (records || []).flatMap((item) => {
+    if (!item?._id) return []
+    return [{ value: item._id, label: item.name || item.code || item._id }]
+  })
+}
+
 function toBranchBody(form) {
   return {
     name: form.name.trim(),
     code: form.code.trim(),
     branchType: form.type || 'head_office',
-    openingDate: form.openingDate || null,
+    openingDate: form.openingDate || todayInput(),
     phone: form.phone.trim(),
     email: form.email.trim(),
     location: form.city.trim(),
@@ -71,11 +81,6 @@ function toBranchBody(form) {
     status: 'active',
     costCentre: form.costCenter.trim(),
     documentPrefix: form.documentPrefix.trim(),
-    document: {
-      type: form.documentType.trim(),
-      reference: form.documentReference.trim(),
-    },
-    notes: form.notes.trim(),
   }
 }
 
@@ -83,11 +88,15 @@ function AddBranchPage() {
   const navigate = useNavigate()
   const createBranch = useCreateBranch()
   const usersQuery = useUsers({ page: 1, limit: 100, search: '', status: '' })
+  const warehousesQuery = useWarehouses({ page: 1, limit: 100, search: '', status: 'active', branchId: '' })
+  const shopsQuery = useShops({ page: 1, limit: 100, search: '', status: 'active', branchId: '' })
   const managers = (usersQuery.data?.data || []).map((user) => ({
     value: user._id,
     label: user.name || user.email,
   }))
-  const [form, setForm] = useState(emptyForm)
+  const warehouses = recordOptions(warehousesQuery.data?.data)
+  const shops = recordOptions(shopsQuery.data?.data)
+  const [form, setForm] = useState(() => ({ ...emptyForm, openingDate: todayInput() }))
   const [errors, setErrors] = useState({})
 
   function update(key, value) {
@@ -100,6 +109,7 @@ function AddBranchPage() {
     if (!form.name.trim()) nextErrors.name = 'Enter a branch name.'
     if (!form.address.trim()) nextErrors.address = 'Enter an address.'
     if (form.email.trim() && !form.email.includes('@')) nextErrors.email = 'Enter a valid email.'
+    if (!form.openingDate) nextErrors.openingDate = 'Enter an opening date.'
     setErrors(nextErrors)
     return Object.keys(nextErrors).length === 0
   }
@@ -121,7 +131,7 @@ function AddBranchPage() {
       onSuccess: (data) => {
         toast.success(data?.message || `${form.name.trim()} saved.`)
         if (andAnother) {
-          setForm(emptyForm)
+          setForm({ ...emptyForm, openingDate: todayInput() })
           setErrors({})
           return
         }
@@ -159,13 +169,7 @@ function AddBranchPage() {
             Manage operating branches, locations, manager and branch access.
           </p>
         </div>
-        <Link
-          to="/organization/branches"
-          className="inline-flex items-center gap-1.5 text-sm font-medium text-[#2f6fed]"
-        >
-          <ArrowLeft size={15} />
-          Back to Branches
-        </Link>
+      
       </div>
 
    
@@ -252,7 +256,7 @@ function AddBranchPage() {
               value={form.warehouse}
               error={errors.warehouse}
               placeholder="Select default warehouse"
-              options={[]}
+              options={warehouses}
               onChange={(value) => update('warehouse', value)}
             />
             <SelectField
@@ -260,7 +264,7 @@ function AddBranchPage() {
               value={form.shop}
               error={errors.shop}
               placeholder="Select shop"
-              options={[]}
+              options={shops}
               onChange={(value) => update('shop', value)}
             />
             <Field
@@ -277,35 +281,12 @@ function AddBranchPage() {
               placeholder="Enter document prefix"
               onChange={(value) => update('documentPrefix', value)}
             />
-          </FormCard>
-
-          <FormCard title="Documents and notes">
-            <SelectField
-              label="Document type"
-              value={form.documentType}
-              error={errors.documentType}
-              placeholder="Select type"
-              options={documentTypes}
-              onChange={(value) => update('documentType', value)}
-            />
-            <Field
-              label="Document reference"
-              value={form.documentReference}
-              error={errors.documentReference}
-              placeholder="Enter document reference"
-              onChange={(value) => update('documentReference', value)}
-            />
-           
-            <label className="block md:col-span-2">
-              <span className="text-sm text-slate-700">Internal notes</span>
-              <textarea
-                value={form.notes}
-                rows={3}
-                placeholder="Add remarks for authorized workspace administrators"
-                onChange={(event) => update('notes', event.target.value)}
-                className="mt-1.5 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 outline-none placeholder:text-slate-400 focus:border-sky-400"
-              />
-            </label>
+            {(warehousesQuery.isError || shopsQuery.isError) && (
+              <p className="text-[13px] text-rose-500 md:col-span-2">
+                {warehousesQuery.isError ? 'Could not load warehouses. ' : ''}
+                {shopsQuery.isError ? 'Could not load shops.' : ''}
+              </p>
+            )}
           </FormCard>
 
           <div className="flex flex-wrap items-center gap-2">
