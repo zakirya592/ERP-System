@@ -1,123 +1,40 @@
-import { useRef, useState } from 'react'
-import { ArrowLeft, ChevronDown } from 'lucide-react'
+import { useState } from 'react'
+import { ChevronDown } from 'lucide-react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { toast } from 'react-toastify'
+import { useBranches } from '../../../queries/branches/branches.queries.js'
+import { useEmployees } from '../../../queries/employees/employees.queries.js'
+import { useUpdateWarehouse, useWarehouse } from '../../../queries/warehouses/warehouses.queries.js'
 import {
-  mergeWarehouseRegister,
-  updateWarehouseRecord,
-  useAddedWarehouses,
-  useWarehouseOverrides,
-  warehouseCodeTaken,
+  applyApiErrors,
+  binTrackingOptions,
+  branchNameOf,
+  formFromWarehouse,
+  managerNameOf,
+  negativeStockOptions,
+  statusClassName,
+  toWarehouseBody,
+  warehouseAccess,
+  warehouseRule,
+  warehouseStatuses,
+  warehouseTypes,
+  withOption,
 } from './warehouseRecords.js'
-import { warehouses as seedWarehouses } from './WarehousePage.jsx'
-
-const parentBranches = ['Central Branch', 'North Branch', 'Airport Branch']
-const warehouseTypes = ['Finished goods', 'Raw materials', 'Transit', 'Quarantine', 'Mixed']
-const custodians = ['Omar Khalid', 'Sara Khan', 'Hafiz Salman', 'Ali Hassan', 'Lina Abbas', 'Nadia Islam']
-const stockAccounts = ['Inventory — finished goods', 'Inventory — raw materials', 'Inventory — transit']
-const defaultZones = ['Zone A', 'Zone B', 'QC Hold']
-const binTrackingOptions = ['Enabled', 'Disabled']
-const negativeStockOptions = ['Blocked', 'Allowed']
-const statuses = ['Active', 'Inactive']
-const documentTypes = ['Warehouse layout / lease', 'Lease', 'Registration', 'License']
-
-const statusClass = {
-  Active: 'bg-[#e7f8ee] text-[#1f9d57]',
-  Inactive: 'bg-[#eef1f4] text-[#8b95a5]',
-}
-
-function withCurrent(options, current) {
-  const value = String(current || '').trim()
-  if (!value || options.includes(value)) return options
-  return [value, ...options]
-}
-
-function formatToday() {
-  return new Date().toLocaleDateString('en-US', {
-    month: 'short',
-    day: '2-digit',
-    year: 'numeric',
-  })
-}
-
-function fileKind(name) {
-  const extension = String(name).split('.').pop()?.toUpperCase()
-  if (!extension || extension === String(name).toUpperCase()) return 'FILE'
-  if (extension === 'JPEG') return 'JPG'
-  return extension
-}
-
-function formFromWarehouse(warehouse) {
-  return {
-    name: warehouse.name || '',
-    code: warehouse.code || '',
-    branch: warehouse.branch || '',
-    type: warehouse.type || '',
-    address: warehouse.address || '',
-    phone: warehouse.phone || '',
-    floorArea: warehouse.floorArea || '',
-    storageCapacity: warehouse.storageCapacity || '',
-    custodian: warehouse.custodian && warehouse.custodian !== 'Unassigned' ? warehouse.custodian : '',
-    stockAccount: warehouse.stockAccount || '',
-    defaultZone: warehouse.defaultZone || '',
-    binTracking: warehouse.binTracking || '',
-    negativeStock: warehouse.negativeStock || '',
-    status: warehouse.status || 'Active',
-    documentType: warehouse.documentType || '',
-    documentReference: warehouse.documentReference || '',
-    fileName: warehouse.fileName || '',
-    notes: warehouse.notes || '',
-  }
-}
-
-function toUpdatedWarehouse(warehouse, form) {
-  const custodian = form.custodian.trim()
-  const branchChanged = warehouse.branch !== form.branch
-  const custodianChanged = (warehouse.custodian || '') !== custodian
-  return {
-    ...warehouse,
-    name: form.name.trim(),
-    code: form.code.trim(),
-    branch: form.branch,
-    type: form.type.trim(),
-    address: form.address.trim(),
-    phone: form.phone.trim(),
-    floorArea: form.floorArea.trim(),
-    storageCapacity: form.storageCapacity.trim(),
-    custodian: custodian || 'Unassigned',
-    stockAccount: form.stockAccount.trim(),
-    defaultZone: form.defaultZone.trim(),
-    binTracking: form.binTracking.trim(),
-    negativeStock: form.negativeStock.trim(),
-    status: form.status || 'Active',
-    documentType: form.documentType.trim(),
-    documentReference: form.documentReference.trim(),
-    fileName: form.fileName.trim(),
-    notes: form.notes.trim(),
-    updatedOn: formatToday(),
-    summary: branchChanged
-      ? 'Warehouse access is scoped to the parent branch. A location with stock or open transfers cannot be archived.'
-      : warehouse.summary,
-    access:
-      custodianChanged || branchChanged
-        ? `${custodian || 'No custodian'} is assigned. Stock stays inside ${form.branch}.`
-        : warehouse.access,
-  }
-}
 
 function EditWarehousePage() {
   const { id } = useParams()
-  const navigate = useNavigate()
-  const fileRef = useRef(null)
-  const addedWarehouses = useAddedWarehouses()
-  const overrides = useWarehouseOverrides()
-  const warehouse =
-    mergeWarehouseRegister(addedWarehouses, seedWarehouses, overrides).find((item) => item.id === id || item.code === id) ||
-    null
-  const [form, setForm] = useState(() => (warehouse ? formFromWarehouse(warehouse) : null))
-  const [errors, setErrors] = useState({})
+  const warehouseQuery = useWarehouse(id)
+  const warehouse = warehouseQuery.data?.data
 
-  if (!warehouse || !form) {
+  if (warehouseQuery.isLoading) {
+    return <Message>Loading warehouse...</Message>
+  }
+
+  if (warehouseQuery.isError) {
+    return <Message className="text-rose-500">{warehouseQuery.error.response?.data?.message || 'Could not load this warehouse.'}</Message>
+  }
+
+  if (!warehouse) {
     return (
       <section className="rounded-2xl border border-slate-200/80 bg-white px-5 py-8 text-center shadow-sm">
         <h1 className="text-sm font-semibold text-slate-900">Warehouse not found</h1>
@@ -128,51 +45,76 @@ function EditWarehousePage() {
     )
   }
 
+  return <EditWarehouseForm key={warehouse._id} warehouse={warehouse} />
+}
+
+function EditWarehouseForm({ warehouse }) {
+  const { id } = useParams()
+  const navigate = useNavigate()
+  const updateWarehouse = useUpdateWarehouse()
+  const branchesQuery = useBranches({ page: 1, limit: 50, search: '', status: 'active' })
+  const employeesQuery = useEmployees({ page: 1, limit: 100, search: '', status: '' })
+  const [form, setForm] = useState(() => formFromWarehouse(warehouse))
+  const [errors, setErrors] = useState({})
+
+  const branchOptions = withOption(
+    (branchesQuery.data?.data || []).map((branch) => ({
+      value: branch._id,
+      label: branch.name,
+    })),
+    form.branchId,
+    branchNameOf(warehouse),
+  )
+  const managerOptions = withOption(
+    (employeesQuery.data?.data || []).map((employee) => ({
+      value: employee._id,
+      label: employee.name || employee.code,
+    })),
+    form.managerId,
+    managerNameOf(warehouse),
+  )
+
   function update(key, value) {
     setForm((current) => ({ ...current, [key]: value }))
     setErrors((current) => ({ ...current, [key]: '' }))
-  }
-
-  function onFile(file) {
-    if (!file) return
-    const allowed = ['application/pdf', 'image/jpeg', 'image/png']
-    if (file.type && !allowed.includes(file.type)) {
-      setErrors((current) => ({ ...current, fileName: 'Use a PDF, JPG, or PNG file.' }))
-      return
-    }
-    update('fileName', file.name)
   }
 
   function validate() {
     const nextErrors = {}
     if (!form.name.trim()) nextErrors.name = 'Enter a warehouse name.'
     if (!form.code.trim()) nextErrors.code = 'Enter a warehouse code.'
-    if (!form.branch) nextErrors.branch = 'Select a parent branch.'
+    if (!form.branchId) nextErrors.branchId = 'Select a parent branch.'
     if (!form.address.trim()) nextErrors.address = 'Enter an address.'
-    if (!form.custodian) nextErrors.custodian = 'Select a custodian.'
-    if (form.code.trim() && warehouseCodeTaken(form.code, warehouse.code)) {
-      nextErrors.code = 'This warehouse code is already in use.'
-    }
     setErrors(nextErrors)
     return Object.keys(nextErrors).length === 0
   }
 
   function save(event) {
     event.preventDefault()
-    if (!validate()) return
-    const updated = updateWarehouseRecord(toUpdatedWarehouse(warehouse, form))
-    toast.success(`${updated.name} updated.`)
-    navigate(`/organization/warehouses/${updated.id}`)
+    if (!validate() || updateWarehouse.isPending) return
+    updateWarehouse.mutate(
+      { id, ...toWarehouseBody(form) },
+      {
+        onSuccess: (data) => {
+          toast.success(data?.message || `${form.name.trim()} updated.`)
+          navigate(`/organization/warehouses/${id}`)
+        },
+        onError: (error) => {
+          applyApiErrors(error, setErrors)
+          toast.error(error.response?.data?.message || 'Could not update the warehouse.')
+        },
+      },
+    )
   }
+
+  const statusLabel = warehouseStatuses.find((option) => option.value === form.status)?.label || form.status || 'Active'
 
   return (
     <form className="space-y-4" onSubmit={save}>
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div>
           <nav aria-label="Breadcrumb" className="flex flex-wrap items-center gap-2 text-[11px] font-semibold tracking-[0.14em] text-slate-400 uppercase">
-            <Link to="/dashboard" className="hover:text-slate-700">
-              Organization
-            </Link>
+            <span>Organization</span>
             <span>/</span>
             <Link to="/organization/warehouses" className="hover:text-slate-700">
               Warehouses
@@ -185,8 +127,7 @@ function EditWarehousePage() {
             Manage storage locations, custodians, zones and stock access.
           </p>
         </div>
-        <Link to="/organization/warehouses" className="inline-flex items-center gap-1.5 text-sm font-medium text-[#2f6fed]">
-          <ArrowLeft size={15} />
+        <Link to="/organization/warehouses" className="rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-sm font-medium text-slate-700">
           Back to Warehouses
         </Link>
       </div>
@@ -194,161 +135,73 @@ function EditWarehousePage() {
       <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
         <div className="space-y-4">
           <FormCard title="Warehouse information">
-            <Field
-              label="Warehouse name"
-              required
-              value={form.name}
-              error={errors.name}
-              placeholder="Enter warehouse name"
-              onChange={(value) => update('name', value)}
-            />
-            <Field
-              label="Warehouse code"
-              required
-              value={form.code}
-              error={errors.code}
-              placeholder="Enter warehouse code"
-              onChange={(value) => update('code', value)}
-            />
+            <Field label="Warehouse name" required value={form.name} error={errors.name} placeholder="Enter warehouse name" onChange={(value) => update('name', value)} />
+            <Field label="Warehouse code" required value={form.code} error={errors.code} placeholder="Enter warehouse code" onChange={(value) => update('code', value)} />
             <SelectField
               label="Parent branch"
               required
-              value={form.branch}
-              error={errors.branch}
+              value={form.branchId}
+              error={errors.branchId}
               placeholder="Select parent branch"
-              options={withCurrent(parentBranches, form.branch)}
-              onChange={(value) => update('branch', value)}
+              options={branchOptions}
+              onChange={(value) => update('branchId', value)}
             />
             <SelectField
               label="Warehouse type"
-              value={form.type}
+              value={form.warehouseType}
+              error={errors.warehouseType}
               placeholder="Select warehouse type"
-              options={withCurrent(warehouseTypes, form.type)}
-              onChange={(value) => update('type', value)}
+              options={withOption(warehouseTypes, form.warehouseType, warehouse.warehouseTypeLabel)}
+              onChange={(value) => update('warehouseType', value)}
             />
           </FormCard>
 
           <FormCard title="Location and capacity">
-            <Field
-              label="Address"
-              required
-              value={form.address}
-              error={errors.address}
-              placeholder="Enter address"
-              onChange={(value) => update('address', value)}
-            />
-            <Field
-              label="Contact phone"
-              value={form.phone}
-              placeholder="Enter contact phone"
-              onChange={(value) => update('phone', value)}
-            />
-            <Field
-              label="Floor area"
-              value={form.floorArea}
-              placeholder="Enter floor area"
-              onChange={(value) => update('floorArea', value)}
-            />
-            <Field
-              label="Storage capacity"
-              value={form.storageCapacity}
-              placeholder="Enter storage capacity"
-              onChange={(value) => update('storageCapacity', value)}
-            />
+            <Field label="Address" required value={form.address} error={errors.address} placeholder="Enter address" onChange={(value) => update('address', value)} />
+            <Field label="Location" value={form.location} error={errors.location} placeholder="Enter location" onChange={(value) => update('location', value)} />
+            <Field label="Contact phone" value={form.phone} error={errors.phone} placeholder="Enter contact phone" onChange={(value) => update('phone', value)} />
+            <Field label="Floor area" value={form.floorArea} error={errors.floorArea} placeholder="Enter floor area" onChange={(value) => update('floorArea', value)} />
+            <Field label="Storage capacity" value={form.storageCapacity} error={errors.storageCapacity} placeholder="Enter storage capacity" onChange={(value) => update('storageCapacity', value)} />
           </FormCard>
 
           <FormCard title="Stock controls and access">
             <SelectField
               label="Custodian"
-              required
-              value={form.custodian}
-              error={errors.custodian}
+              value={form.managerId}
+              error={errors.managerId}
               placeholder="Select custodian"
-              options={withCurrent(custodians, form.custodian)}
-              onChange={(value) => update('custodian', value)}
+              options={managerOptions}
+              onChange={(value) => update('managerId', value)}
             />
-            <SelectField
-              label="Default stock account"
-              value={form.stockAccount}
-              placeholder="Select default stock account"
-              options={withCurrent(stockAccounts, form.stockAccount)}
-              onChange={(value) => update('stockAccount', value)}
-            />
-            <SelectField
-              label="Default zone"
-              value={form.defaultZone}
-              placeholder="Select default zone"
-              options={withCurrent(defaultZones, form.defaultZone)}
-              onChange={(value) => update('defaultZone', value)}
-            />
+            <Field label="Default stock account" value={form.stockAccount} error={errors.stockAccount} placeholder="Enter default stock account" onChange={(value) => update('stockAccount', value)} />
+            <Field label="Default zone" value={form.defaultZone} error={errors.defaultZone} placeholder="Enter default zone" onChange={(value) => update('defaultZone', value)} />
             <SelectField
               label="Bin tracking"
               value={form.binTracking}
+              error={errors.binTracking}
               placeholder="Select bin tracking"
-              options={binTrackingOptions}
+              options={withOption(binTrackingOptions, form.binTracking)}
               onChange={(value) => update('binTracking', value)}
             />
             <SelectField
               label="Negative stock"
               value={form.negativeStock}
+              error={errors.negativeStock}
               placeholder="Select negative stock"
-              options={negativeStockOptions}
+              options={withOption(negativeStockOptions, form.negativeStock)}
               onChange={(value) => update('negativeStock', value)}
             />
             <SelectField
               label="Status"
               value={form.status}
+              error={errors.status}
               placeholder="Select status"
-              options={statuses}
+              options={withOption(warehouseStatuses, form.status)}
               onChange={(value) => update('status', value)}
             />
           </FormCard>
 
-          <FormCard title="Documents and notes">
-            <SelectField
-              label="Document type"
-              value={form.documentType}
-              placeholder="Select document type"
-              options={withCurrent(documentTypes, form.documentType)}
-              onChange={(value) => update('documentType', value)}
-            />
-            <Field
-              label="Document reference"
-              value={form.documentReference}
-              placeholder="Enter document reference"
-              onChange={(value) => update('documentReference', value)}
-            />
-            <div className="md:col-span-2">
-              <span className="text-sm text-slate-700">Upload document</span>
-              <input
-                ref={fileRef}
-                type="file"
-                accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png"
-                className="hidden"
-                onChange={(event) => onFile(event.target.files?.[0])}
-              />
-              {form.fileName ? (
-                <p className="mt-1.5 text-sm text-slate-700">
-                  {form.fileName} · {fileKind(form.fileName)} ·{' '}
-                  <button type="button" onClick={() => toast.success('Document opened.')} className="font-medium text-[#2f6fed]">
-                    View
-                  </button>
-                  {' / '}
-                  <button type="button" onClick={() => fileRef.current?.click()} className="font-medium text-[#2f6fed]">
-                    Replace
-                  </button>
-                </p>
-              ) : (
-                <p className="mt-1 text-[13px] text-slate-400">
-                  PDF, JPG or PNG ·{' '}
-                  <button type="button" onClick={() => fileRef.current?.click()} className="font-medium text-[#2f6fed]">
-                    Choose a file
-                  </button>{' '}
-                  to attach supporting evidence.
-                </p>
-              )}
-              {errors.fileName && <p className="mt-1 text-xs text-rose-500">{errors.fileName}</p>}
-            </div>
+          <FormCard title="Notes">
             <label className="block md:col-span-2">
               <span className="text-sm text-slate-700">Internal notes</span>
               <textarea
@@ -358,6 +211,7 @@ function EditWarehousePage() {
                 onChange={(event) => update('notes', event.target.value)}
                 className="mt-1.5 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 outline-none placeholder:text-slate-400 focus:border-sky-400"
               />
+              {errors.notes && <p className="mt-1 text-xs text-rose-500">{errors.notes}</p>}
             </label>
           </FormCard>
 
@@ -369,12 +223,16 @@ function EditWarehousePage() {
             >
               Cancel
             </button>
-            <button type="submit" className="cursor-pointer rounded-lg bg-[#2f6fed] px-4 py-2 text-sm font-medium text-white">
-              Save changes
+            <button
+              type="submit"
+              disabled={updateWarehouse.isPending}
+              className="cursor-pointer rounded-lg bg-[#2f6fed] px-4 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {updateWarehouse.isPending ? 'Saving...' : 'Save changes'}
             </button>
           </div>
           <p className="text-xs text-slate-400">
-            <span className="text-rose-500">*</span> Required fields. Warehouse access is scoped to the parent branch. A location with stock or open transfers cannot be archived.
+            <span className="text-rose-500">*</span> Required fields. {warehouseRule}
           </p>
         </div>
 
@@ -382,20 +240,20 @@ function EditWarehousePage() {
           <h2 className="text-[18px] font-semibold text-slate-900">{form.name || warehouse.name}</h2>
           <p className="mt-1 text-[13px] text-slate-400">{form.code || warehouse.code}</p>
           <div className="mt-3">
-            <span className={`inline-flex rounded-full px-2.5 py-0.5 text-[12px] font-medium ${statusClass[form.status] || 'bg-slate-100 text-slate-500'}`}>
-              {form.status || 'Active'}
+            <span className={`inline-flex rounded-full px-2.5 py-0.5 text-[12px] font-medium ${statusClassName(statusLabel)}`}>
+              {statusLabel}
             </span>
           </div>
-          <p className="mt-4 text-[13px] leading-5 text-slate-500">{warehouse.summary}</p>
+          <p className="mt-4 text-[13px] leading-5 text-slate-500">{warehouse.notes || warehouseRule}</p>
           <dl className="mt-5 space-y-3.5">
-            <SideFact label="Created by" value={warehouse.createdBy || '—'} />
-            <SideFact label="Created on" value={warehouse.createdOn || '—'} />
-            <SideFact label="Updated" value={warehouse.updatedOn || '—'} />
-            <SideFact label="Record status" value={(form.status || warehouse.status).toUpperCase()} />
+            <SideFact label="Branch" value={branchNameOf(warehouse) || '—'} />
+            <SideFact label="Created on" value={formatSideDate(warehouse.createdAt)} />
+            <SideFact label="Updated" value={formatSideDate(warehouse.updatedAt)} />
+            <SideFact label="Record status" value={statusLabel} />
           </dl>
           <div className="mt-5 rounded-xl bg-[#eef4ff] px-4 py-3.5">
             <p className="text-[13px] font-semibold text-[#2f6fed]">Access and relationships</p>
-            <p className="mt-1 text-[13px] leading-5 text-slate-600">{warehouse.access}</p>
+            <p className="mt-1 text-[13px] leading-5 text-slate-600">{warehouseAccess}</p>
           </div>
           <div className="mt-3 rounded-xl bg-slate-50 px-4 py-3.5">
             <p className="text-[13px] font-semibold text-slate-700">History is retained</p>
@@ -406,6 +264,21 @@ function EditWarehousePage() {
         </aside>
       </div>
     </form>
+  )
+}
+
+function formatSideDate(value) {
+  if (!value) return '—'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value
+  return date.toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' })
+}
+
+function Message({ children, className = '' }) {
+  return (
+    <section className={`rounded-2xl border border-slate-200/80 bg-white px-5 py-8 text-center text-sm font-semibold shadow-sm ${className}`}>
+      {children}
+    </section>
   )
 }
 
@@ -452,11 +325,15 @@ function SelectField({ label, required = false, value, error, placeholder, optio
           } ${value ? 'text-slate-800' : 'text-slate-400'}`}
         >
           {placeholder && <option value="">{placeholder}</option>}
-          {options.map((option) => (
-            <option key={option} value={option}>
-              {option}
-            </option>
-          ))}
+          {options.map((option) => {
+            const optionValue = typeof option === 'string' ? option : option.value
+            const optionLabel = typeof option === 'string' ? option : option.label || option.value
+            return (
+              <option key={optionValue} value={optionValue}>
+                {optionLabel}
+              </option>
+            )
+          })}
         </select>
         <ChevronDown size={16} className="pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 text-slate-400" />
       </span>

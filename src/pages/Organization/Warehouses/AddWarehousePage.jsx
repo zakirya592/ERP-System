@@ -1,18 +1,20 @@
-import { useRef, useState } from 'react'
+import { useState } from 'react'
 import { ArrowLeft, ChevronDown } from 'lucide-react'
 import { Link, useNavigate } from 'react-router-dom'
 import { toast } from 'react-toastify'
-import { addWarehouseRecord, nextWarehouseCode, warehouseCodeTaken } from './warehouseRecords.js'
-
-const parentBranches = ['Central Branch', 'North Branch', 'Airport Branch']
-const warehouseTypes = ['Finished goods', 'Raw materials', 'Transit', 'Quarantine', 'Mixed']
-const custodians = ['Omar Khalid', 'Sara Khan', 'Hafiz Salman', 'Ali Hassan', 'Lina Abbas', 'Nadia Islam']
-const stockAccounts = ['Inventory — finished goods', 'Inventory — raw materials', 'Inventory — transit']
-const defaultZones = ['Zone A', 'Zone B', 'QC Hold']
-const binTrackingOptions = ['Enabled', 'Disabled']
-const negativeStockOptions = ['Blocked', 'Allowed']
-const statuses = ['Active', 'Inactive']
-const documentTypes = ['Warehouse layout / lease', 'Lease', 'Registration', 'License']
+import { useBranches } from '../../../queries/branches/branches.queries.js'
+import { useEmployees } from '../../../queries/employees/employees.queries.js'
+import { useCreateWarehouse } from '../../../queries/warehouses/warehouses.queries.js'
+import {
+  applyApiErrors,
+  binTrackingOptions,
+  negativeStockOptions,
+  toWarehouseBody,
+  warehouseAccess,
+  warehouseRule,
+  warehouseStatuses,
+  warehouseTypes,
+} from './warehouseRecords.js'
 
 const steps = [
   'Complete required information',
@@ -24,122 +26,72 @@ const steps = [
 const emptyForm = {
   name: '',
   code: '',
-  branch: '',
-  type: '',
+  branchId: '',
+  warehouseType: 'finished_goods',
+  location: '',
   address: '',
   phone: '',
   floorArea: '',
   storageCapacity: '',
-  custodian: '',
+  managerId: '',
   stockAccount: '',
   defaultZone: '',
   binTracking: '',
   negativeStock: '',
-  status: '',
-  documentType: '',
-  documentReference: '',
-  fileName: '',
+  status: 'active',
   notes: '',
-}
-
-function currentUserName() {
-  try {
-    const user = JSON.parse(localStorage.getItem('user') || 'null')
-    return user?.name || 'Administrator'
-  } catch {
-    return 'Administrator'
-  }
-}
-
-function formatToday() {
-  return new Date().toLocaleDateString('en-US', {
-    month: 'short',
-    day: '2-digit',
-    year: 'numeric',
-  })
-}
-
-function toWarehouse(form) {
-  const code = form.code.trim() || nextWarehouseCode()
-  const status = form.status || 'Active'
-  const today = formatToday()
-  const custodian = form.custodian.trim()
-
-  return {
-    id: code,
-    code,
-    name: form.name.trim(),
-    branch: form.branch,
-    type: form.type.trim(),
-    custodian,
-    status,
-    address: form.address.trim(),
-    phone: form.phone.trim(),
-    floorArea: form.floorArea.trim(),
-    storageCapacity: form.storageCapacity.trim(),
-    stockAccount: form.stockAccount.trim(),
-    defaultZone: form.defaultZone.trim(),
-    binTracking: form.binTracking.trim(),
-    negativeStock: form.negativeStock.trim(),
-    documentType: form.documentType.trim(),
-    documentReference: form.documentReference.trim(),
-    fileName: form.fileName.trim(),
-    notes: form.notes.trim(),
-    createdBy: currentUserName(),
-    createdOn: today,
-    updatedOn: today,
-    summary: 'Warehouse access is scoped to the parent branch. A location with stock or open transfers cannot be archived.',
-    access: 'Quality hold stock remains visible but unavailable for normal dispatch.',
-    zones: [],
-  }
 }
 
 function AddWarehousePage() {
   const navigate = useNavigate()
-  const fileRef = useRef(null)
+  const createWarehouse = useCreateWarehouse()
+  const branchesQuery = useBranches({ page: 1, limit: 50, search: '', status: 'active' })
+  const employeesQuery = useEmployees({ page: 1, limit: 100, search: '', status: 'active' })
   const [form, setForm] = useState(emptyForm)
   const [errors, setErrors] = useState({})
+
+  const branchOptions = (branchesQuery.data?.data || []).map((branch) => ({
+    value: branch._id,
+    label: branch.name,
+  }))
+  const managerOptions = (employeesQuery.data?.data || []).map((employee) => ({
+    value: employee._id,
+    label: employee.name || employee.code,
+  }))
 
   function update(key, value) {
     setForm((current) => ({ ...current, [key]: value }))
     setErrors((current) => ({ ...current, [key]: '' }))
   }
 
-  function onFile(file) {
-    if (!file) {
-      update('fileName', '')
-      return
-    }
-    const allowed = ['application/pdf', 'image/jpeg', 'image/png']
-    if (file.type && !allowed.includes(file.type)) {
-      setErrors((current) => ({ ...current, fileName: 'Use a PDF, JPG, or PNG file.' }))
-      return
-    }
-    update('fileName', file.name)
-  }
-
   function validate() {
     const nextErrors = {}
     if (!form.name.trim()) nextErrors.name = 'Enter a warehouse name.'
-    if (!form.branch) nextErrors.branch = 'Select a parent branch.'
+    if (!form.code.trim()) nextErrors.code = 'Enter a warehouse code.'
+    if (!form.branchId) nextErrors.branchId = 'Select a parent branch.'
     if (!form.address.trim()) nextErrors.address = 'Enter an address.'
-    if (!form.custodian) nextErrors.custodian = 'Select a custodian.'
-    if (form.code.trim() && warehouseCodeTaken(form.code)) nextErrors.code = 'This warehouse code is already in use.'
     setErrors(nextErrors)
     return Object.keys(nextErrors).length === 0
   }
 
   function save(andAnother) {
-    if (!validate()) return
-    const warehouse = addWarehouseRecord(toWarehouse(form))
-    toast.success(`${warehouse.name} saved.`)
-    if (andAnother) {
-      setForm(emptyForm)
-      setErrors({})
-      if (fileRef.current) fileRef.current.value = ''
-      return
-    }
-    navigate('/organization/warehouses', { state: { selectedId: warehouse.id } })
+    if (!validate() || createWarehouse.isPending) return
+    createWarehouse.mutate(toWarehouseBody(form), {
+      onSuccess: (data) => {
+        toast.success(data?.message || `${form.name.trim()} saved.`)
+        if (andAnother) {
+          setForm(emptyForm)
+          setErrors({})
+          return
+        }
+        const id = data?.data?._id
+        navigate('/organization/warehouses', { state: id ? { selectedId: id } : undefined })
+      },
+      onError: (error) => {
+        applyApiErrors(error, setErrors)
+        toast.error(error.response?.data?.message || 'Could not save the warehouse.')
+      },
+    })
   }
 
   return (
@@ -154,7 +106,7 @@ function AddWarehousePage() {
         <div>
           <nav aria-label="Breadcrumb" className="flex flex-wrap items-center gap-2 text-[11px] font-semibold tracking-[0.14em] text-slate-400 uppercase">
             <Link to="/dashboard" className="hover:text-slate-700">
-              Organization
+              Dashboard
             </Link>
             <span>/</span>
             <Link to="/organization/warehouses" className="hover:text-slate-700">
@@ -177,95 +129,53 @@ function AddWarehousePage() {
       <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
         <div className="space-y-4">
           <FormCard title="Warehouse information">
-            <Field
-              label="Warehouse name"
-              required
-              value={form.name}
-              error={errors.name}
-              placeholder="Enter warehouse name"
-              onChange={(value) => update('name', value)}
-            />
-            <Field
-              label="Warehouse code"
-              value={form.code}
-              error={errors.code}
-              placeholder="Enter warehouse code"
-              onChange={(value) => update('code', value)}
-            />
+            <Field label="Warehouse name" required value={form.name} error={errors.name} placeholder="Enter warehouse name" onChange={(value) => update('name', value)} />
+            <Field label="Warehouse code" required value={form.code} error={errors.code} placeholder="Enter warehouse code" onChange={(value) => update('code', value)} />
             <SelectField
               label="Parent branch"
               required
-              value={form.branch}
-              error={errors.branch}
+              value={form.branchId}
+              error={errors.branchId}
               placeholder="Select parent branch"
-              options={parentBranches}
-              onChange={(value) => update('branch', value)}
+              options={branchOptions}
+              onChange={(value) => update('branchId', value)}
             />
             <SelectField
               label="Warehouse type"
-              value={form.type}
+              value={form.warehouseType}
+              error={errors.warehouseType}
               placeholder="Select warehouse type"
               options={warehouseTypes}
-              onChange={(value) => update('type', value)}
+              onChange={(value) => update('warehouseType', value)}
             />
+            {branchesQuery.isError && (
+              <p className="text-[13px] text-rose-500 md:col-span-2">Could not load branches.</p>
+            )}
           </FormCard>
 
           <FormCard title="Location and capacity">
-            <Field
-              label="Address"
-              required
-              value={form.address}
-              error={errors.address}
-              placeholder="Enter address"
-              onChange={(value) => update('address', value)}
-            />
-            <Field
-              label="Contact phone"
-              value={form.phone}
-              placeholder="Enter contact phone"
-              onChange={(value) => update('phone', value)}
-            />
-            <Field
-              label="Floor area"
-              value={form.floorArea}
-              placeholder="Enter floor area"
-              onChange={(value) => update('floorArea', value)}
-            />
-            <Field
-              label="Storage capacity"
-              value={form.storageCapacity}
-              placeholder="Enter storage capacity"
-              onChange={(value) => update('storageCapacity', value)}
-            />
+            <Field label="Address" required value={form.address} error={errors.address} placeholder="Enter address" onChange={(value) => update('address', value)} />
+            <Field label="Location" value={form.location} error={errors.location} placeholder="Enter location" onChange={(value) => update('location', value)} />
+            <Field label="Contact phone" value={form.phone} error={errors.phone} placeholder="Enter contact phone" onChange={(value) => update('phone', value)} />
+            <Field label="Floor area" value={form.floorArea} error={errors.floorArea} placeholder="Enter floor area" onChange={(value) => update('floorArea', value)} />
+            <Field label="Storage capacity" value={form.storageCapacity} error={errors.storageCapacity} placeholder="Enter storage capacity" onChange={(value) => update('storageCapacity', value)} />
           </FormCard>
 
           <FormCard title="Stock controls and access">
             <SelectField
               label="Custodian"
-              required
-              value={form.custodian}
-              error={errors.custodian}
+              value={form.managerId}
+              error={errors.managerId}
               placeholder="Select custodian"
-              options={custodians}
-              onChange={(value) => update('custodian', value)}
+              options={managerOptions}
+              onChange={(value) => update('managerId', value)}
             />
-            <SelectField
-              label="Default stock account"
-              value={form.stockAccount}
-              placeholder="Select default stock account"
-              options={stockAccounts}
-              onChange={(value) => update('stockAccount', value)}
-            />
-            <SelectField
-              label="Default zone"
-              value={form.defaultZone}
-              placeholder="Select default zone"
-              options={defaultZones}
-              onChange={(value) => update('defaultZone', value)}
-            />
+            <Field label="Default stock account" value={form.stockAccount} error={errors.stockAccount} placeholder="Enter default stock account" onChange={(value) => update('stockAccount', value)} />
+            <Field label="Default zone" value={form.defaultZone} error={errors.defaultZone} placeholder="Enter default zone" onChange={(value) => update('defaultZone', value)} />
             <SelectField
               label="Bin tracking"
               value={form.binTracking}
+              error={errors.binTracking}
               placeholder="Select bin tracking"
               options={binTrackingOptions}
               onChange={(value) => update('binTracking', value)}
@@ -273,6 +183,7 @@ function AddWarehousePage() {
             <SelectField
               label="Negative stock"
               value={form.negativeStock}
+              error={errors.negativeStock}
               placeholder="Select negative stock"
               options={negativeStockOptions}
               onChange={(value) => update('negativeStock', value)}
@@ -280,45 +191,17 @@ function AddWarehousePage() {
             <SelectField
               label="Status"
               value={form.status}
+              error={errors.status}
               placeholder="Select status"
-              options={statuses}
+              options={warehouseStatuses}
               onChange={(value) => update('status', value)}
             />
+            {employeesQuery.isError && (
+              <p className="text-[13px] text-rose-500 md:col-span-2">Could not load custodians.</p>
+            )}
           </FormCard>
 
-          <FormCard title="Documents and notes">
-            <SelectField
-              label="Document type"
-              value={form.documentType}
-              placeholder="Select document type"
-              options={documentTypes}
-              onChange={(value) => update('documentType', value)}
-            />
-            <Field
-              label="Document reference"
-              value={form.documentReference}
-              placeholder="Enter document reference"
-              onChange={(value) => update('documentReference', value)}
-            />
-            <div className="md:col-span-2">
-              <span className="text-sm text-slate-700">Upload document</span>
-              <p className="mt-1 text-[13px] text-slate-400">
-                PDF, JPG or PNG ·{' '}
-                <button type="button" onClick={() => fileRef.current?.click()} className="font-medium text-[#2f6fed]">
-                  Choose a file
-                </button>{' '}
-                to attach supporting evidence.
-              </p>
-              <input
-                ref={fileRef}
-                type="file"
-                accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png"
-                className="hidden"
-                onChange={(event) => onFile(event.target.files?.[0])}
-              />
-              {form.fileName && <p className="mt-1 text-sm text-slate-700">{form.fileName}</p>}
-              {errors.fileName && <p className="mt-1 text-xs text-rose-500">{errors.fileName}</p>}
-            </div>
+          <FormCard title="Notes">
             <label className="block md:col-span-2">
               <span className="text-sm text-slate-700">Internal notes</span>
               <textarea
@@ -328,6 +211,7 @@ function AddWarehousePage() {
                 onChange={(event) => update('notes', event.target.value)}
                 className="mt-1.5 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 outline-none placeholder:text-slate-400 focus:border-sky-400"
               />
+              {errors.notes && <p className="mt-1 text-xs text-rose-500">{errors.notes}</p>}
             </label>
           </FormCard>
 
@@ -339,19 +223,24 @@ function AddWarehousePage() {
             >
               Cancel
             </button>
-            <button type="submit" className="cursor-pointer rounded-lg bg-[#2f6fed] px-4 py-2 text-sm font-medium text-white">
-              Save Warehouse
+            <button
+              type="submit"
+              disabled={createWarehouse.isPending}
+              className="cursor-pointer rounded-lg bg-[#2f6fed] px-4 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {createWarehouse.isPending ? 'Saving...' : 'Save Warehouse'}
             </button>
             <button
               type="button"
+              disabled={createWarehouse.isPending}
               onClick={() => save(true)}
-              className="cursor-pointer rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700"
+              className="cursor-pointer rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 disabled:cursor-not-allowed disabled:opacity-60"
             >
               Save and add another
             </button>
           </div>
           <p className="text-xs text-slate-400">
-            <span className="text-rose-500">*</span> Required fields. Warehouse access is scoped to the parent branch. A location with stock or open transfers cannot be archived.
+            <span className="text-rose-500">*</span> Required fields. {warehouseRule}
           </p>
         </div>
 
@@ -364,9 +253,7 @@ function AddWarehousePage() {
               </span>
               <p className="text-sm font-medium text-slate-800">Create a record in this workspace</p>
             </div>
-            <p className="mt-2 text-[13px] leading-5 text-slate-500">
-              Warehouse access is scoped to the parent branch. A location with stock or open transfers cannot be archived.
-            </p>
+            <p className="mt-2 text-[13px] leading-5 text-slate-500">{warehouseRule}</p>
             <ol className="mt-4 space-y-2.5">
               {steps.map((step, index) => (
                 <li key={step} className="flex items-center gap-2.5 text-sm text-slate-600">
@@ -381,9 +268,7 @@ function AddWarehousePage() {
 
           <section className="rounded-2xl bg-[#eef4ff] px-5 py-4">
             <h2 className="text-sm font-semibold text-[#2f6fed]">Access and relationships</h2>
-            <p className="mt-1 text-[13px] leading-5 text-slate-600">
-              Quality hold stock remains visible but unavailable for normal dispatch.
-            </p>
+            <p className="mt-1 text-[13px] leading-5 text-slate-600">{warehouseAccess}</p>
           </section>
         </aside>
       </div>
@@ -434,11 +319,15 @@ function SelectField({ label, required = false, value, error, placeholder, optio
           } ${value ? 'text-slate-800' : 'text-slate-400'}`}
         >
           {placeholder && <option value="">{placeholder}</option>}
-          {options.map((option) => (
-            <option key={option} value={option}>
-              {option}
-            </option>
-          ))}
+          {options.map((option) => {
+            const optionValue = typeof option === 'string' ? option : option.value
+            const optionLabel = typeof option === 'string' ? option : option.label || option.value
+            return (
+              <option key={optionValue} value={optionValue}>
+                {optionLabel}
+              </option>
+            )
+          })}
         </select>
         <ChevronDown size={16} className="pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 text-slate-400" />
       </span>
