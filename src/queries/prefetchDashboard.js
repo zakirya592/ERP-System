@@ -1,5 +1,6 @@
 import { getBranches } from '../api/branches.api'
 import { getCurrencies } from '../api/currencies.api'
+import { getQuantityUnits } from '../api/quantityUnits.api'
 import { getEmployees } from '../api/employees.api'
 import { getShops } from '../api/shops.api'
 import { getWarehouses } from '../api/warehouses.api'
@@ -19,6 +20,7 @@ export const dashboardListParams = {
   shops: { page: 1, limit: 20, search: '', status: '', branchId: '' },
   warehouses: { page: 1, limit: 20, search: '', status: '', branchId: '' },
   currencies: { page: 1, limit: 20, search: '', status: '' },
+  quantityUnits: { page: 1, limit: 20, search: '', status: '' },
 }
 
 export const dashboardListQueries = [
@@ -60,6 +62,11 @@ export const dashboardListQueries = [
   {
     queryKey: queryKeys.currencies.list(dashboardListParams.currencies),
     queryFn: () => getCurrencies(dashboardListParams.currencies),
+    staleTime,
+  },
+  {
+    queryKey: queryKeys.quantityUnits.list(dashboardListParams.quantityUnits),
+    queryFn: () => getQuantityUnits(dashboardListParams.quantityUnits),
     staleTime,
   },
 ]

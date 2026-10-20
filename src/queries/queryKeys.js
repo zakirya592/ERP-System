@@ -33,4 +33,8 @@ export const queryKeys = {
     list: (params) => ['currencies', 'list', params],
     detail: (id) => ['currencies', 'detail', id],
   },
+  quantityUnits: {
+    list: (params) => ['quantityUnits', 'list', params],
+    detail: (id) => ['quantityUnits', 'detail', id],
+  },
 }

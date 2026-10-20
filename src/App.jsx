@@ -45,6 +45,10 @@ import AddCurrencyPage from './pages/MasterData/Currencies/AddCurrencyPage.jsx'
 import CurrenciesPage from './pages/MasterData/Currencies/CurrenciesPage.jsx'
 import UpdateCurrencyPage from './pages/MasterData/Currencies/UpdateCurrencyPage.jsx'
 import ViewCurrencyPage from './pages/MasterData/Currencies/ViewCurrencyPage.jsx'
+import AddQuantityUnitPage from './pages/MasterData/QuantityUnits/AddQuantityUnitPage.jsx'
+import QuantityUnitsPage from './pages/MasterData/QuantityUnits/QuantityUnitsPage.jsx'
+import UpdateQuantityUnitPage from './pages/MasterData/QuantityUnits/UpdateQuantityUnitPage.jsx'
+import ViewQuantityUnitPage from './pages/MasterData/QuantityUnits/ViewQuantityUnitPage.jsx'
 import ModulePage from './pages/ModulePage.jsx'
 
 function App() {
@@ -96,6 +100,10 @@ function App() {
         <Route path="/master-data/currency/:id/edit" element={<UpdateCurrencyPage />} />
         <Route path="/master-data/currency/:id" element={<ViewCurrencyPage />} />
         <Route path="/master-data/currency" element={<CurrenciesPage />} />
+        <Route path="/master-data/units/new" element={<AddQuantityUnitPage />} />
+        <Route path="/master-data/units/:id/edit" element={<UpdateQuantityUnitPage />} />
+        <Route path="/master-data/units/:id" element={<ViewQuantityUnitPage />} />
+        <Route path="/master-data/units" element={<QuantityUnitsPage />} />
         <Route path=":section/:page" element={<ModulePage />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />

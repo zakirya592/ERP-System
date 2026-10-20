@@ -4,20 +4,9 @@ import { Link, useNavigate } from 'react-router-dom'
 import { toast } from 'react-toastify'
 import GlobalTable from '../../../components/GlobalTable.jsx'
 import { useCurrencies, useUpdateCurrencyStatus } from '../../../queries/currencies/currencies.queries.js'
+import MasterDataTabs from '../MasterDataTabs.jsx'
 
 const limit = 20
-
-const tabs = [
-  { label: 'Currency', to: '/master-data/currency' },
-  { label: 'Quantity Units', to: '/master-data/units' },
-  { label: 'Packing Units', to: '/master-data/packing-units' },
-  { label: 'Product Categories', to: '/master-data/categories' },
-  { label: 'Expense Categories', to: '/expenses/categories' },
-  { label: 'Income Categories', to: '/master-data/income-categories' },
-  { label: 'Asset Categories', to: '/master-data/asset-categories' },
-  { label: 'Liability Categories', to: '/master-data/liability-categories' },
-  { label: 'Property Types', to: '/master-data/property-types' },
-]
 
 const statusOptions = [
   { label: 'All statuses', value: '' },
@@ -218,25 +207,7 @@ function CurrenciesPage() {
         </div>
       </div>
 
-      <div className="flex flex-wrap gap-2">
-        {tabs.map((tab) => {
-          const selected = tab.to === '/master-data/currency'
-          return (
-            <button
-              key={tab.label}
-              type="button"
-              onClick={() => navigate(tab.to)}
-              className={
-                selected
-                  ? 'cursor-pointer rounded-lg bg-[#e8f1ff] shadow-sm px-3 py-1.5 text-sm font-medium text-[#2f6fed]'
-                  : 'cursor-pointer rounded-lg shadow-sm px-3 py-1.5 text-sm text-slate-500 hover:bg-white bg-white'
-              }
-            >
-              {tab.label}
-            </button>
-          )
-        })}
-      </div>
+      <MasterDataTabs />
 
       <div className="rounded-xl bg-[#eef4ff] px-4 py-3">
         <p className="text-sm font-semibold text-[#2f6fed]">

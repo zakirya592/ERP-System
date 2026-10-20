@@ -132,7 +132,7 @@ export const sidebarMenu = [
     icon: Database,
     children: [
       { key: 'currency', label: 'Currency', to: '/master-data/currency' },
-      { key: 'units', label: 'Units', to: '/master-data/units' },
+      { key: 'units', label: 'Quantity Units', to: '/master-data/units' },
       { key: 'packing-units', label: 'Packing Units', to: '/master-data/packing-units' },
       { key: 'categories', label: 'Categories', to: '/master-data/categories' },
     ],
