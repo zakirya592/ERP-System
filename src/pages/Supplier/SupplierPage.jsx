@@ -423,7 +423,7 @@ function SupplierPage() {
           data={filtered}
           pagination
           rowsPerPage={8}
-          // className="!h-auto !max-h-none"
+          // className="h-auto! max-h-none!"
           emptyContent="No suppliers match these filters."
           onRowPress={(item) => setSelectedId(item.id)}
           rowClassName={(item) =>

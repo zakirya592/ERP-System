@@ -255,7 +255,7 @@ function SalesPage() {
           data={filtered}
           pagination
           rowsPerPage={rowsPerPage}
-          className="!h-auto !max-h-none"
+          className="h-auto! max-h-none!"
           emptyContent="No sales match these filters."
           rowClassName="border-b border-slate-100 last:border-b-0 hover:bg-slate-50"
         />

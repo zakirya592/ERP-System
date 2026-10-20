@@ -29,6 +29,10 @@ import AddShopPage from './pages/Organization/Shops/AddShopPage.jsx'
 import EditShopPage from './pages/Organization/Shops/EditShopPage.jsx'
 import ShopPage from './pages/Organization/Shops/ShopPage.jsx'
 import ViewShopPage from './pages/Organization/Shops/ViewShopPage.jsx'
+import AddWarehousePage from './pages/Organization/Warehouses/AddWarehousePage.jsx'
+import EditWarehousePage from './pages/Organization/Warehouses/EditWarehousePage.jsx'
+import ViewWarehousePage from './pages/Organization/Warehouses/ViewWarehousePage.jsx'
+import WarehousePage from './pages/Organization/Warehouses/WarehousePage.jsx'
 import ModulePage from './pages/ModulePage.jsx'
 
 function App() {
@@ -45,6 +49,10 @@ function App() {
         <Route path="/organization/shop/:id/edit" element={<EditShopPage />} />
         <Route path="/organization/shop/:id" element={<ViewShopPage />} />
         <Route path="/organization/shop" element={<ShopPage />} />
+        <Route path="/organization/warehouses/new" element={<AddWarehousePage />} />
+        <Route path="/organization/warehouses/:id/edit" element={<EditWarehousePage />} />
+        <Route path="/organization/warehouses/:id" element={<ViewWarehousePage />} />
+        <Route path="/organization/warehouses" element={<WarehousePage />} />
         <Route path="/sales/sales" element={<SalesPage />} />
         <Route path="/sales/sales/new" element={<NewSalePage />} />
         <Route path="/sales/returns" element={<SalesReturnPage />} />

@@ -171,7 +171,7 @@ function ViewShopPage() {
           data={employees}
           pagination
           rowsPerPage={5}
-          className="!h-auto !max-h-none"
+          className="h-auto! max-h-none!"
           contentClassName="min-w-full"
           emptyContent="This shop has no assigned employees."
           summary={

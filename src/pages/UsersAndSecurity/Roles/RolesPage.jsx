@@ -263,7 +263,7 @@ function RolesPage() {
           page={page}
           totalCount={total}
           onPageChange={setPage}
-          className="!h-auto !max-h-none"
+          className="h-auto! max-h-none!"
           emptyContent={
             rolesQuery.isError
               ? rolesQuery.error.response?.data?.message || 'Could not load roles.'

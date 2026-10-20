@@ -184,7 +184,7 @@ function UsersPage() {
           page={page}
           totalCount={total}
           onPageChange={setPage}
-          className="!h-auto !max-h-none"
+          className="h-auto! max-h-none!"
           rowClassName="border-b border-slate-100 last:border-b-0 hover:bg-slate-50"
           emptyContent={
             usersQuery.isError

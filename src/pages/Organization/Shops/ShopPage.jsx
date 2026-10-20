@@ -293,6 +293,10 @@ function ShopPage() {
       navigate('/organization/branches')
       return
     }
+    if (item === 'Warehouses') {
+      navigate('/organization/warehouses')
+      return
+    }
     setTab(item)
   }
 
@@ -442,7 +446,7 @@ function ShopPage() {
                   page={page}
                   totalCount={filtered.length}
                   onPageChange={setPage}
-                  className="!h-auto !max-h-none"
+                  className="h-auto! max-h-none!"
                   contentClassName="min-w-full"
                   emptyContent="No shops match these filters."
                   summary={
@@ -472,7 +476,7 @@ function ShopPage() {
                   data={employees}
                   pagination
                   rowsPerPage={pageSize}
-                  className="!h-auto !max-h-none"
+                  className="h-auto! max-h-none!"
                   contentClassName="min-w-full"
                   emptyContent={selected ? 'This shop has no assigned employees.' : 'Select a shop to see assigned employees.'}
                   summary={

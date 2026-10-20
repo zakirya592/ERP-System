@@ -236,6 +236,10 @@ function BranchPage() {
                 navigate('/organization/shop')
                 return
               }
+              if (item === 'Warehouses') {
+                navigate('/organization/warehouses')
+                return
+              }
               setTab(item)
             }}
             className={
@@ -295,7 +299,7 @@ function BranchPage() {
                 page={page}
                 totalCount={total}
                 onPageChange={setPage}
-                className="!h-auto !max-h-none"
+                className="h-auto! max-h-none!"
                 contentClassName="min-w-full"
                 emptyContent={
                   branchesQuery.isError
@@ -344,7 +348,7 @@ function LocationHierarchy({ locations }) {
         ariaLabel="Location hierarchy"
         columns={childColumns}
         data={rows}
-        className="!h-auto !max-h-none"
+        className="h-auto! max-h-none!"
         contentClassName="min-w-full"
         emptyContent="This branch has no shops or warehouses."
       />

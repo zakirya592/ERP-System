@@ -193,7 +193,7 @@ function ViewBranchPage() {
               data={locations}
               pagination
               rowsPerPage={10}
-              className="!h-auto !max-h-none"
+              className="h-auto! max-h-none!"
               contentClassName="min-w-full"
               emptyContent="This branch has no shops or warehouses."
               summary={
