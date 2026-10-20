@@ -297,6 +297,10 @@ function ShopPage() {
       navigate('/organization/warehouses')
       return
     }
+    if (item === 'Employees') {
+      navigate('/organization/employees')
+      return
+    }
     setTab(item)
   }
 
