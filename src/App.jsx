@@ -41,6 +41,10 @@ import AddOwnerPage from './pages/Organization/Owners/AddOwnerPage.jsx'
 import EditOwnerPage from './pages/Organization/Owners/EditOwnerPage.jsx'
 import OwnerPage from './pages/Organization/Owners/OwnerPage.jsx'
 import ViewOwnerPage from './pages/Organization/Owners/ViewOwnerPage.jsx'
+import AddCurrencyPage from './pages/MasterData/Currencies/AddCurrencyPage.jsx'
+import CurrenciesPage from './pages/MasterData/Currencies/CurrenciesPage.jsx'
+import UpdateCurrencyPage from './pages/MasterData/Currencies/UpdateCurrencyPage.jsx'
+import ViewCurrencyPage from './pages/MasterData/Currencies/ViewCurrencyPage.jsx'
 import ModulePage from './pages/ModulePage.jsx'
 
 function App() {
@@ -88,6 +92,10 @@ function App() {
         <Route path="/users/roles/:id" element={<ViewRolePage />} />
         <Route path="/users/roles/:id/edit" element={<UpdateRolePage />} />
         <Route path="/users/permissions" element={<PermissionsPage />} />
+        <Route path="/master-data/currency/new" element={<AddCurrencyPage />} />
+        <Route path="/master-data/currency/:id/edit" element={<UpdateCurrencyPage />} />
+        <Route path="/master-data/currency/:id" element={<ViewCurrencyPage />} />
+        <Route path="/master-data/currency" element={<CurrenciesPage />} />
         <Route path=":section/:page" element={<ModulePage />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />

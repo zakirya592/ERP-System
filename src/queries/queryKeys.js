@@ -29,4 +29,8 @@ export const queryKeys = {
     list: (params) => ['warehouses', 'list', params],
     detail: (id) => ['warehouses', 'detail', id],
   },
+  currencies: {
+    list: (params) => ['currencies', 'list', params],
+    detail: (id) => ['currencies', 'detail', id],
+  },
 }
