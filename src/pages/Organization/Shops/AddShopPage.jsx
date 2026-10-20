@@ -1,23 +1,19 @@
-import { useRef, useState } from 'react'
+import { useState } from 'react'
 import { ArrowLeft, ChevronDown } from 'lucide-react'
 import { Link, useNavigate } from 'react-router-dom'
 import { toast } from 'react-toastify'
-import { addShopRecord, nextShopCode, shopCodeTaken } from './shopRecords.js'
-
-const parentBranches = ['Central Branch', 'North Branch', 'Airport Branch']
-
-const warehouses = [
-  { value: 'Main Warehouse', branch: 'Central Branch' },
-  { value: 'Market Warehouse', branch: 'Central Branch' },
-  { value: 'North Warehouse', branch: 'North Branch' },
-  { value: 'Airport Warehouse', branch: 'Airport Branch' },
-]
-
-const shopTypes = ['Retail', 'Outlet', 'Counter', 'Kiosk']
-const managers = ['Dhiar Khalid', 'Lina Abbas', 'Sara Khan', 'Nadia Islam', 'Ali Hassan', 'Omar Khalid']
-const priceLists = ['Standard retail', 'Wholesale', 'Airport']
-const statuses = ['Active', 'Inactive']
-const documentTypes = ['Shop lease', 'Registration', 'License', 'Tax certificate']
+import { useBranch, useBranches } from '../../../queries/branches/branches.queries.js'
+import { useCreateShop } from '../../../queries/shops/shops.queries.js'
+import {
+  applyApiErrors,
+  priceLists,
+  shopAccess,
+  shopRule,
+  shopStatuses,
+  shopTypes,
+  toShopBody,
+  warehouseOptions,
+} from './shopRecords.js'
 
 const steps = [
   'Complete required information',
@@ -29,141 +25,71 @@ const steps = [
 const emptyForm = {
   name: '',
   code: '',
-  branch: '',
-  type: '',
+  branchId: '',
+  shopType: 'retail',
   address: '',
-  city: '',
+  location: '',
   phone: '',
   email: '',
-  manager: '',
-  warehouse: '',
+  warehouseId: '',
   priceList: '',
   cashAccount: '',
   openingHours: '',
-  status: '',
-  documentType: '',
-  documentReference: '',
-  fileName: '',
+  status: 'active',
   notes: '',
-}
-
-function currentUserName() {
-  try {
-    const user = JSON.parse(localStorage.getItem('user') || 'null')
-    return user?.name || 'Administrator'
-  } catch {
-    return 'Administrator'
-  }
-}
-
-function formatToday() {
-  return new Date().toLocaleDateString('en-US', {
-    month: 'short',
-    day: '2-digit',
-    year: 'numeric',
-  })
-}
-
-function toShop(form) {
-  const code = form.code.trim() || nextShopCode()
-  const status = form.status || 'Active'
-  const today = formatToday()
-  const manager = form.manager.trim()
-  const warehouse = form.warehouse.trim()
-
-  return {
-    id: code,
-    code,
-    name: form.name.trim(),
-    branch: form.branch,
-    manager: manager || 'Unassigned',
-    status,
-    createdBy: currentUserName(),
-    createdOn: today,
-    updatedOn: today,
-    type: form.type.trim(),
-    address: form.address.trim(),
-    city: form.city.trim(),
-    phone: form.phone.trim(),
-    email: form.email.trim(),
-    warehouse,
-    priceList: form.priceList.trim(),
-    cashAccount: form.cashAccount.trim(),
-    openingHours: form.openingHours.trim(),
-    summary: warehouse
-      ? `${form.name.trim()} sells from ${warehouse}. Only warehouses in ${form.branch} are available.`
-      : 'Select the branch before choosing a linked warehouse. Only warehouses in that branch are available.',
-    access: "Sales default to this shop's warehouse and price list. Cash follows the assigned role.",
-    employees: manager
-      ? [
-          {
-            id: `${code}-manager`,
-            code: 'EMP-NEW',
-            name: manager,
-            role: 'Shop manager',
-            assignment: 'Primary',
-            status: 'Active',
-          },
-        ]
-      : [],
-  }
 }
 
 function AddShopPage() {
   const navigate = useNavigate()
-  const fileRef = useRef(null)
+  const createShop = useCreateShop()
+  const branchesQuery = useBranches({ page: 1, limit: 50, search: '', status: '' })
   const [form, setForm] = useState(emptyForm)
   const [errors, setErrors] = useState({})
+  const branchQuery = useBranch(form.branchId)
 
-  const branchWarehouses = warehouses.filter((item) => item.branch === form.branch)
+  const branchOptions = (branchesQuery.data?.data || []).map((branch) => ({
+    value: branch._id,
+    label: branch.name,
+  }))
+  const linkedWarehouses = warehouseOptions(branchQuery.data?.data)
 
   function update(key, value) {
     setForm((current) => {
       const next = { ...current, [key]: value }
-      if (key === 'branch' && current.warehouse) {
-        const allowed = warehouses.some((item) => item.branch === value && item.value === current.warehouse)
-        if (!allowed) next.warehouse = ''
-      }
+      if (key === 'branchId') next.warehouseId = ''
       return next
     })
     setErrors((current) => ({ ...current, [key]: '' }))
   }
 
-  function onFile(file) {
-    if (!file) {
-      update('fileName', '')
-      return
-    }
-    const allowed = ['application/pdf', 'image/jpeg', 'image/png']
-    if (file.type && !allowed.includes(file.type)) {
-      setErrors((current) => ({ ...current, fileName: 'Use a PDF, JPG, or PNG file.' }))
-      return
-    }
-    update('fileName', file.name)
-  }
-
   function validate() {
     const nextErrors = {}
     if (!form.name.trim()) nextErrors.name = 'Enter a shop name.'
-    if (!form.branch) nextErrors.branch = 'Select a parent branch.'
+    if (!form.branchId) nextErrors.branchId = 'Select a parent branch.'
     if (!form.address.trim()) nextErrors.address = 'Enter an address.'
     if (form.email.trim() && !form.email.includes('@')) nextErrors.email = 'Enter a valid email.'
-    if (form.code.trim() && shopCodeTaken(form.code)) nextErrors.code = 'This shop code is already in use.'
     setErrors(nextErrors)
     return Object.keys(nextErrors).length === 0
   }
 
   function save(andAnother) {
-    if (!validate()) return
-    const shop = addShopRecord(toShop(form))
-    toast.success(`${shop.name} saved.`)
-    if (andAnother) {
-      setForm(emptyForm)
-      setErrors({})
-      if (fileRef.current) fileRef.current.value = ''
-      return
-    }
-    navigate('/organization/shop', { state: { selectedId: shop.id } })
+    if (!validate() || createShop.isPending) return
+    createShop.mutate(toShopBody(form), {
+      onSuccess: (data) => {
+        toast.success(data?.message || `${form.name.trim()} saved.`)
+        if (andAnother) {
+          setForm(emptyForm)
+          setErrors({})
+          return
+        }
+        const id = data?.data?._id
+        navigate('/organization/shop', { state: id ? { selectedId: id } : undefined })
+      },
+      onError: (error) => {
+        applyApiErrors(error, setErrors)
+        toast.error(error.response?.data?.message || 'Could not save the shop.')
+      },
+    })
   }
 
   return (
@@ -201,90 +127,46 @@ function AddShopPage() {
       <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
         <div className="space-y-4">
           <FormCard title="Shop information">
-            <Field
-              label="Shop name"
-              required
-              value={form.name}
-              error={errors.name}
-              placeholder="Enter shop name"
-              onChange={(value) => update('name', value)}
-            />
-            <Field
-              label="Shop code"
-              value={form.code}
-              error={errors.code}
-              placeholder="Enter shop code"
-              onChange={(value) => update('code', value)}
-            />
+            <Field label="Shop name" required value={form.name} error={errors.name} placeholder="Enter shop name" onChange={(value) => update('name', value)} />
+            <Field label="Shop code" value={form.code} error={errors.code} placeholder="Enter shop code" onChange={(value) => update('code', value)} />
             <SelectField
               label="Parent branch"
               required
-              value={form.branch}
-              error={errors.branch}
+              value={form.branchId}
+              error={errors.branchId}
               placeholder="Select parent branch"
-              options={parentBranches}
-              onChange={(value) => update('branch', value)}
+              options={branchOptions}
+              onChange={(value) => update('branchId', value)}
             />
             <SelectField
               label="Shop type"
-              value={form.type}
-              error={errors.type}
+              value={form.shopType}
+              error={errors.shopType}
               placeholder="Select shop type"
               options={shopTypes}
-              onChange={(value) => update('type', value)}
+              onChange={(value) => update('shopType', value)}
             />
+            {branchesQuery.isError && (
+              <p className="text-[13px] text-rose-500 md:col-span-2">Could not load branches.</p>
+            )}
           </FormCard>
 
           <FormCard title="Location and contact">
-            <Field
-              label="Address"
-              required
-              value={form.address}
-              error={errors.address}
-              placeholder="Enter address"
-              onChange={(value) => update('address', value)}
-            />
-            <Field
-              label="City / district"
-              value={form.city}
-              error={errors.city}
-              placeholder="Enter city / district"
-              onChange={(value) => update('city', value)}
-            />
-            <Field
-              label="Phone"
-              value={form.phone}
-              error={errors.phone}
-              placeholder="Enter phone"
-              onChange={(value) => update('phone', value)}
-            />
-            <Field
-              label="Email"
-              type="email"
-              value={form.email}
-              error={errors.email}
-              placeholder="Enter email"
-              onChange={(value) => update('email', value)}
-            />
+            <Field label="Address" required value={form.address} error={errors.address} placeholder="Enter address" onChange={(value) => update('address', value)} />
+            <Field label="City / district" value={form.location} error={errors.location} placeholder="Enter city / district" onChange={(value) => update('location', value)} />
+            <Field label="Phone" value={form.phone} error={errors.phone} placeholder="Enter phone" onChange={(value) => update('phone', value)} />
+            <Field label="Email" type="email" value={form.email} error={errors.email} placeholder="Enter email" onChange={(value) => update('email', value)} />
           </FormCard>
 
           <FormCard title="Sales and assignments">
             <SelectField
-              label="Shop manager"
-              value={form.manager}
-              error={errors.manager}
-              placeholder="Select shop manager"
-              options={managers}
-              onChange={(value) => update('manager', value)}
-            />
-            <SelectField
               label="Linked warehouse"
-              value={form.warehouse}
-              error={errors.warehouse}
-              placeholder={form.branch ? 'Select linked warehouse' : 'Select parent branch first'}
-              options={branchWarehouses}
-              disabled={!form.branch}
-              onChange={(value) => update('warehouse', value)}
+              value={form.warehouseId}
+              error={errors.warehouseId}
+              placeholder={form.branchId ? 'Select linked warehouse' : 'Select parent branch first'}
+              options={linkedWarehouses}
+              disabled={!form.branchId}
+              onChange={(value) => update('warehouseId', value)}
             />
             <SelectField
               label="Price list"
@@ -294,69 +176,19 @@ function AddShopPage() {
               options={priceLists}
               onChange={(value) => update('priceList', value)}
             />
-            <Field
-              label="Cash account"
-              value={form.cashAccount}
-              error={errors.cashAccount}
-              placeholder="Enter cash account"
-              onChange={(value) => update('cashAccount', value)}
-            />
-            <Field
-              label="Opening hours"
-              value={form.openingHours}
-              error={errors.openingHours}
-              placeholder="Enter opening hours"
-              onChange={(value) => update('openingHours', value)}
-            />
+            <Field label="Cash account" value={form.cashAccount} error={errors.cashAccount} placeholder="Enter cash account" onChange={(value) => update('cashAccount', value)} />
+            <Field label="Opening hours" value={form.openingHours} error={errors.openingHours} placeholder="Enter opening hours" onChange={(value) => update('openingHours', value)} />
             <SelectField
               label="Status"
               value={form.status}
               error={errors.status}
               placeholder="Select status"
-              options={statuses}
+              options={shopStatuses}
               onChange={(value) => update('status', value)}
             />
           </FormCard>
 
-          <FormCard title="Documents and notes">
-            <SelectField
-              label="Document type"
-              value={form.documentType}
-              error={errors.documentType}
-              placeholder="Shop lease / registration"
-              options={documentTypes}
-              onChange={(value) => update('documentType', value)}
-            />
-            <Field
-              label="Document reference"
-              value={form.documentReference}
-              error={errors.documentReference}
-              placeholder="Enter document reference"
-              onChange={(value) => update('documentReference', value)}
-            />
-            <div className="md:col-span-2">
-              <span className="text-sm text-slate-700">Upload document</span>
-              <p className="mt-1 text-[13px] text-slate-400">
-                PDF, JPG or PNG ·{' '}
-                <button
-                  type="button"
-                  onClick={() => fileRef.current?.click()}
-                  className="font-medium text-[#2f6fed]"
-                >
-                  Choose a file
-                </button>{' '}
-                to attach supporting evidence.
-              </p>
-              <input
-                ref={fileRef}
-                type="file"
-                accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png"
-                className="hidden"
-                onChange={(event) => onFile(event.target.files?.[0])}
-              />
-              {form.fileName && <p className="mt-1 text-sm text-slate-700">{form.fileName}</p>}
-              {errors.fileName && <p className="mt-1 text-xs text-rose-500">{errors.fileName}</p>}
-            </div>
+          <FormCard title="Notes">
             <label className="block md:col-span-2">
               <span className="text-sm text-slate-700">Internal notes</span>
               <textarea
@@ -366,6 +198,7 @@ function AddShopPage() {
                 onChange={(event) => update('notes', event.target.value)}
                 className="mt-1.5 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 outline-none placeholder:text-slate-400 focus:border-sky-400"
               />
+              {errors.notes && <p className="mt-1 text-xs text-rose-500">{errors.notes}</p>}
             </label>
           </FormCard>
 
@@ -379,25 +212,26 @@ function AddShopPage() {
             </button>
             <button
               type="submit"
-              className="cursor-pointer rounded-lg bg-[#2f6fed] px-4 py-2 text-sm font-medium text-white"
+              disabled={createShop.isPending}
+              className="cursor-pointer rounded-lg bg-[#2f6fed] px-4 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-60"
             >
-              Save Shop
+              {createShop.isPending ? 'Saving...' : 'Save Shop'}
             </button>
             <button
               type="button"
+              disabled={createShop.isPending}
               onClick={() => save(true)}
-              className="cursor-pointer rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700"
+              className="cursor-pointer rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 disabled:cursor-not-allowed disabled:opacity-60"
             >
               Save and add another
             </button>
           </div>
           <p className="text-xs text-slate-400">
-            <span className="text-rose-500">*</span> Required fields. Select the branch before choosing a linked warehouse.
-            Only warehouses in that branch are available.
+            <span className="text-rose-500">*</span> Required fields. {shopRule}
           </p>
         </div>
 
-        <aside className="space-y-4 ">
+        <aside className="space-y-4">
           <section className="rounded-2xl border border-slate-200/80 bg-white px-5 py-4 shadow-sm">
             <h2 className="text-sm font-semibold text-slate-900">Before you save</h2>
             <div className="mt-3 flex items-center gap-2">
@@ -406,9 +240,7 @@ function AddShopPage() {
               </span>
               <p className="text-sm font-medium text-slate-800">Create a record in this workspace</p>
             </div>
-            <p className="mt-2 text-[13px] leading-5 text-slate-500">
-              Select the branch before choosing a linked warehouse. Only warehouses in that branch are available.
-            </p>
+            <p className="mt-2 text-[13px] leading-5 text-slate-500">{shopRule}</p>
             <ol className="mt-4 space-y-2.5">
               {steps.map((step, index) => (
                 <li key={step} className="flex items-center gap-2.5 text-sm text-slate-600">
@@ -423,9 +255,7 @@ function AddShopPage() {
 
           <section className="rounded-2xl bg-[#eef4ff] px-5 py-4">
             <h2 className="text-sm font-semibold text-[#2f6fed]">Access and relationships</h2>
-            <p className="mt-1 text-[13px] leading-5 text-slate-600">
-              Sales default to this shop&apos;s warehouse and price list. Cash account follows the assigned role.
-            </p>
+            <p className="mt-1 text-[13px] leading-5 text-slate-600">{shopAccess}</p>
           </section>
         </aside>
       </div>

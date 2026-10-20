@@ -21,4 +21,8 @@ export const queryKeys = {
     list: (params) => ['employees', 'list', params],
     detail: (id) => ['employees', 'detail', id],
   },
+  shops: {
+    list: (params) => ['shops', 'list', params],
+    detail: (id) => ['shops', 'detail', id],
+  },
 }

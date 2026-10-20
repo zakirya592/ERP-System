@@ -1,177 +1,28 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Download, Plus, Search } from 'lucide-react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { toast } from 'react-toastify'
 import GlobalTable from '../../../components/GlobalTable.jsx'
-import { mergeShopRegister, useAddedShops, useShopOverrides } from './shopRecords.js'
+import { useBranches } from '../../../queries/branches/branches.queries.js'
+import { useShop, useShops, useUpdateShopStatus } from '../../../queries/shops/shops.queries.js'
+import { display, mapShop, shopAccess, shopRule, shopStatuses, statusClassName } from './shopRecords.js'
 
-const pageSize = 5
+const limit = 20
 
 const tabs = ['Branches', 'Shops', 'Warehouses', 'Employees', 'Owners', 'Partnerships']
 
-export const shops = [
-  {
-    id: 'SH-001',
-    code: 'SH-001',
-    name: 'Central Shop',
-    branch: 'Central Branch',
-    manager: 'Omar Khalid',
-    status: 'Active',
-    type: 'Retail outlet',
-    address: '18 Commerce Avenue',
-    city: 'City Center',
-    phone: 'Enter shop phone',
-    email: 'shop@example.com',
-    warehouse: 'Main Warehouse',
-    priceList: 'Standard retail',
-    cashAccount: 'Central shop cash',
-    openingHours: '09:00–18:00',
-    documentType: 'Shop lease / registration',
-    documentReference: 'DOC-2026-001',
-    fileName: 'agreement-or-record.pdf',
-    notes: '',
-    createdBy: 'Anika Rahman',
-    createdOn: 'Jan 01, 2026',
-    updatedOn: 'Sep 20, 2026',
-    summary:
-      'Select the branch before choosing a linked warehouse. Only warehouses in that branch are available.',
-    access: "Sales default to this shop's warehouse and price list. Cash follows the assigned role.",
-    employees: [
-      { id: 'SH-001-EMP-001', code: 'EMP-001', name: 'Omar Khalid', role: 'Shop manager', assignment: 'Primary', status: 'Active' },
-      { id: 'SH-001-EMP-004', code: 'EMP-004', name: 'Sara Khan', role: 'Sales officer', assignment: 'Primary', status: 'Active' },
-      { id: 'SH-001-EMP-005', code: 'EMP-005', name: 'Ali Hassan', role: 'Cashier', assignment: 'Secondary', status: 'Active' },
-    ],
-  },
-  {
-    id: 'SH-002',
-    code: 'SH-002',
-    name: 'Market Shop',
-    branch: 'Central Branch',
-    manager: 'Lina Abbas',
-    status: 'Active',
-    createdBy: 'Anika Rahman',
-    createdOn: 'Feb 12, 2026',
-    updatedOn: 'Sep 18, 2026',
-    summary: 'Retail counter for the central market. Price list and cash drawer follow the shop assignment.',
-    access: 'Sales post against the market warehouse. Returns stay inside this shop.',
-    employees: [
-      { id: 'SH-002-EMP-006', code: 'EMP-006', name: 'Lina Abbas', role: 'Sales officer', assignment: 'Primary', status: 'Active' },
-      { id: 'SH-002-EMP-007', code: 'EMP-007', name: 'Nadia Islam', role: 'Cashier', assignment: 'Secondary', status: 'Active' },
-      { id: 'SH-002-EMP-008', code: 'EMP-008', name: 'Reza Ahmed', role: 'Store keeper', assignment: 'Primary', status: 'Active' },
-    ],
-  },
-  {
-    id: 'SH-003',
-    code: 'SH-003',
-    name: 'Riverside Shop',
-    branch: 'Central Branch',
-    manager: 'Sara Khan',
-    status: 'Active',
-    createdBy: 'Imran Qureshi',
-    createdOn: 'Mar 04, 2026',
-    updatedOn: 'Aug 30, 2026',
-    summary: 'Walk-in shop linked to the central branch warehouse. Stock requests use that warehouse only.',
-    access: 'Counters use the riverside price list. Cash is closed by the primary cashier.',
-    employees: [
-      { id: 'SH-003-EMP-004', code: 'EMP-004', name: 'Sara Khan', role: 'Sales officer', assignment: 'Primary', status: 'Active' },
-      { id: 'SH-003-EMP-001', code: 'EMP-001', name: 'Omar Khalid', role: 'Shop manager', assignment: 'Secondary', status: 'Active' },
-    ],
-  },
-  {
-    id: 'SH-004',
-    code: 'SH-004',
-    name: 'North Shop',
-    branch: 'North Branch',
-    manager: 'Nadia Islam',
-    status: 'Active',
-    createdBy: 'Anika Rahman',
-    createdOn: 'Apr 16, 2026',
-    updatedOn: 'Sep 02, 2026',
-    summary: 'North branch retail shop. Warehouses outside North Branch are not available for this shop.',
-    access: 'Sales default to the north warehouse. Staff access follows the assigned role.',
-    employees: [
-      { id: 'SH-004-EMP-007', code: 'EMP-007', name: 'Nadia Islam', role: 'Shop manager', assignment: 'Primary', status: 'Active' },
-      { id: 'SH-004-EMP-005', code: 'EMP-005', name: 'Ali Hassan', role: 'Cashier', assignment: 'Primary', status: 'Active' },
-      { id: 'SH-004-EMP-009', code: 'EMP-009', name: 'Farah Noor', role: 'Sales officer', assignment: 'Secondary', status: 'Active' },
-    ],
-  },
-  {
-    id: 'SH-005',
-    code: 'SH-005',
-    name: 'Airport Outlet',
-    branch: 'Airport Branch',
-    manager: 'Ali Hassan',
-    status: 'Inactive',
-    createdBy: 'Imran Qureshi',
-    createdOn: 'May 21, 2026',
-    updatedOn: 'Sep 11, 2026',
-    summary: 'Outlet is inactive. New sales stay closed until the shop is set back to active.',
-    access: 'Historical sales remain on the airport price list. Cash assignment is unchanged.',
-    employees: [
-      { id: 'SH-005-EMP-005', code: 'EMP-005', name: 'Ali Hassan', role: 'Cashier', assignment: 'Primary', status: 'Active' },
-      { id: 'SH-005-EMP-001', code: 'EMP-001', name: 'Omar Khalid', role: 'Shop manager', assignment: 'Secondary', status: 'Active' },
-    ],
-  },
-  {
-    id: 'SH-006',
-    code: 'SH-006',
-    name: 'City Shop',
-    branch: 'Central Branch',
-    manager: 'Dhiar Khalid',
-    status: 'Active',
-    createdBy: 'Anika Rahman',
-    createdOn: 'Jun 08, 2026',
-    updatedOn: 'Sep 14, 2026',
-    summary: 'City counter under Central Branch. Linked warehouses must belong to that branch.',
-    access: 'Sales use the city shop price list. Cash follows the primary assignment.',
-    employees: [
-      { id: 'SH-006-EMP-010', code: 'EMP-010', name: 'Dhiar Khalid', role: 'Shop manager', assignment: 'Primary', status: 'Active' },
-      { id: 'SH-006-EMP-006', code: 'EMP-006', name: 'Lina Abbas', role: 'Sales officer', assignment: 'Primary', status: 'Active' },
-    ],
-  },
-  {
-    id: 'SH-007',
-    code: 'SH-007',
-    name: 'Harbor Shop',
-    branch: 'North Branch',
-    manager: 'Nadia Islam',
-    status: 'Active',
-    createdBy: 'Anika Rahman',
-    createdOn: 'Jul 19, 2026',
-    updatedOn: 'Sep 16, 2026',
-    summary: 'Harbor counter for North Branch. Only warehouses in that branch can be linked.',
-    access: 'Receipts post to the harbor shop. Cash is limited to assigned cashiers.',
-    employees: [
-      { id: 'SH-007-EMP-004', code: 'EMP-004', name: 'Sara Khan', role: 'Sales officer', assignment: 'Primary', status: 'Active' },
-      { id: 'SH-007-EMP-008', code: 'EMP-008', name: 'Reza Ahmed', role: 'Cashier', assignment: 'Secondary', status: 'Active' },
-    ],
-  },
-  {
-    id: 'SH-008',
-    code: 'SH-008',
-    name: 'West Shop',
-    branch: 'Airport Branch',
-    manager: 'Ali Hassan',
-    status: 'Active',
-    createdBy: 'Imran Qureshi',
-    createdOn: 'Aug 02, 2026',
-    updatedOn: 'Sep 19, 2026',
-    summary: 'West shop sells from the airport branch warehouse and price list.',
-    access: 'Sales default to this shop. Cash follows the assigned role.',
-    employees: [
-      { id: 'SH-008-EMP-007', code: 'EMP-007', name: 'Nadia Islam', role: 'Shop manager', assignment: 'Primary', status: 'Active' },
-    ],
-  },
-]
-
-const statusClass = {
-  Active: 'bg-[#e7f8ee] text-[#1f9d57]',
-  Inactive: 'bg-[#eef1f4] text-[#8b95a5]',
+const tabRoutes = {
+  Branches: '/organization/branches',
+  Warehouses: '/organization/warehouses',
+  Employees: '/organization/employees',
+  Owners: '/organization/owners',
 }
+
+const statusOptions = [{ label: 'All statuses', value: '' }, ...shopStatuses]
 
 function StatusPill({ status }) {
   return (
-    <span className={`inline-flex rounded-full px-2.5 py-0.5 text-[12px] font-medium ${statusClass[status] || 'bg-slate-100 text-slate-500'}`}>
+    <span className={`inline-flex rounded-full px-2.5 py-0.5 text-[12px] font-medium ${statusClassName(status)}`}>
       {status}
     </span>
   )
@@ -182,27 +33,22 @@ function shopColumns(onView, onEdit) {
     {
       key: 'code',
       label: 'CODE',
-      renderCell: (item) => <span className="font-mono text-[12px] text-slate-400">{item.code}</span>,
+      renderCell: (item) => <span className="font-mono text-[12px] text-slate-400">{display(item.code)}</span>,
     },
     {
       key: 'name',
       label: 'SHOP',
       isRowHeader: true,
       renderCell: (item) => (
-        <button type="button" onClick={() => onView(item)} className="text-[13px] font-medium text-slate-800">
-          {item.name}
+        <button type="button" onClick={() => onView(item)} className="cursor-pointer text-[13px] font-medium text-slate-800">
+          {display(item.name)}
         </button>
       ),
     },
     {
       key: 'branch',
       label: 'BRANCH',
-      renderCell: (item) => <span className="text-[13px] text-slate-600">{item.branch}</span>,
-    },
-    {
-      key: 'manager',
-      label: 'MANAGER',
-      renderCell: (item) => <span className="text-[13px] text-slate-600">{item.manager}</span>,
+      renderCell: (item) => <span className="text-[13px] text-slate-600">{display(item.branch)}</span>,
     },
     {
       key: 'status',
@@ -216,10 +62,10 @@ function shopColumns(onView, onEdit) {
       cellClassName: 'text-right',
       renderCell: (item) => (
         <div className="flex justify-end gap-3">
-          <button type="button" onClick={() => onView(item)} className="text-[13px] font-medium text-[#2f6fed]">
+          <button type="button" onClick={() => onView(item)} className="cursor-pointer text-[13px] font-medium text-[#2f6fed]">
             View
           </button>
-          <button type="button" onClick={() => onEdit(item)} className="text-[13px] font-medium text-[#2f6fed]">
+          <button type="button" onClick={() => onEdit(item)} className="cursor-pointer text-[13px] font-medium text-[#2f6fed]">
             Edit
           </button>
         </div>
@@ -232,18 +78,18 @@ const employeeColumns = [
   {
     key: 'code',
     label: 'CODE',
-    renderCell: (item) => <span className="font-mono text-[12px] text-slate-400">{item.code}</span>,
+    renderCell: (item) => <span className="font-mono text-[12px] text-slate-400">{display(item.code)}</span>,
   },
   {
     key: 'name',
     label: 'EMPLOYEE',
     isRowHeader: true,
-    renderCell: (item) => <span className="text-[13px] font-medium text-slate-800">{item.name}</span>,
+    renderCell: (item) => <span className="text-[13px] font-medium text-slate-800">{display(item.name)}</span>,
   },
   {
     key: 'role',
     label: 'ROLE',
-    renderCell: (item) => <span className="text-[13px] text-slate-600">{item.role}</span>,
+    renderCell: (item) => <span className="text-[13px] text-slate-600">{display(item.role)}</span>,
   },
   {
     key: 'assignment',
@@ -260,49 +106,57 @@ const employeeColumns = [
 function ShopPage() {
   const navigate = useNavigate()
   const location = useLocation()
-  const addedShops = useAddedShops()
-  const overrides = useShopOverrides()
-  const register = mergeShopRegister(addedShops, shops, overrides)
   const [tab, setTab] = useState('Shops')
   const [query, setQuery] = useState('')
+  const [debouncedSearch, setDebouncedSearch] = useState('')
   const [branch, setBranch] = useState('')
   const [status, setStatus] = useState('')
   const [page, setPage] = useState(1)
-  const [selectedId, setSelectedId] = useState(location.state?.selectedId || shops[0].id)
-  const [employeeId, setEmployeeId] = useState(shops[0].employees[0].id)
+  const [selectedId, setSelectedId] = useState(location.state?.selectedId || null)
+  const [employeeId, setEmployeeId] = useState(null)
 
-  const branches = [...new Set(register.map((shop) => shop.branch))]
-  const needle = query.trim().toLowerCase()
-  const filtered = register.filter((shop) => {
-    const matchesQuery =
-      !needle || shop.name.toLowerCase().includes(needle) || shop.code.toLowerCase().includes(needle)
-    const matchesBranch = !branch || shop.branch === branch
-    const matchesStatus = !status || shop.status === status
-    return matchesQuery && matchesBranch && matchesStatus
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(query.trim()), 300)
+    return () => clearTimeout(timer)
+  }, [query])
+
+  useEffect(() => {
+    setPage(1)
+  }, [debouncedSearch, status, branch])
+
+  const shopsQuery = useShops({
+    page,
+    limit,
+    search: debouncedSearch,
+    status,
+    branchId: branch,
   })
-  const start = (page - 1) * pageSize
-  const pageRows = filtered.slice(start, start + pageSize)
+  const updateStatus = useUpdateShopStatus()
+  const branchesQuery = useBranches({ page: 1, limit: 50, search: '', status: '' })
+  const pageRows = (shopsQuery.data?.data || []).map(mapShop)
+  const total = shopsQuery.data?.meta?.total ?? pageRows.length
+  const summary = shopsQuery.data?.meta?.summary || shopsQuery.data?.data?.[0]?.summary
   const selected = pageRows.find((shop) => shop.id === selectedId) || pageRows[0] || null
-  const employees = selected?.employees || []
+
+  useEffect(() => {
+    if (selectedId && pageRows.some((shop) => shop.id === selectedId)) return
+    if (pageRows[0]) setSelectedId(pageRows[0].id)
+  }, [pageRows, selectedId])
+
+  const detailQuery = useShop(selected?.id)
+  const detail = detailQuery.data?.data ? mapShop(detailQuery.data.data) : null
+  const profile = detail || selected
+  const employees = profile?.employees || []
   const selectedEmployee = employees.find((employee) => employee.id === employeeId) || employees[0] || null
-  const activeCount = register.filter((shop) => shop.status === 'Active').length
-  const staffCount = register.reduce((total, shop) => total + shop.employees.length, 0)
+  const branchOptions = (branchesQuery.data?.data || []).map((item) => ({
+    id: item._id,
+    name: item.name,
+  }))
 
   function openTab(item) {
-    if (item === 'Branches') {
-      navigate('/organization/branches')
-      return
-    }
-    if (item === 'Warehouses') {
-      navigate('/organization/warehouses')
-      return
-    }
-    if (item === 'Employees') {
-      navigate('/organization/employees')
-      return
-    }
-    if (item === 'Owners') {
-      navigate('/organization/owners')
+    const route = tabRoutes[item]
+    if (route) {
+      navigate(route)
       return
     }
     setTab(item)
@@ -319,6 +173,22 @@ function ShopPage() {
 
   function editShop(shop) {
     navigate(`/organization/shop/${shop.id}/edit`)
+  }
+
+  function changeStatus(nextStatus) {
+    if (!profile?.id || profile.statusValue === nextStatus || updateStatus.isPending) return
+    updateStatus.mutate(
+      { id: profile.id, status: nextStatus },
+      {
+        onSuccess: (data) => {
+          const label = shopStatuses.find((option) => option.value === nextStatus)?.label || nextStatus
+          toast.success(data?.message || `${profile.name || 'Shop'} is now ${label}.`)
+        },
+        onError: (error) => {
+          toast.error(error.response?.data?.message || 'Could not update the shop status.')
+        },
+      },
+    )
   }
 
   function clearFilters() {
@@ -350,7 +220,7 @@ function ShopPage() {
           <button
             type="button"
             onClick={() => toast.success('Shop register exported.')}
-            className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-sm font-medium text-slate-700"
+            className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-sm font-medium text-slate-700"
           >
             <Download size={15} />
             Export
@@ -358,7 +228,7 @@ function ShopPage() {
           <button
             type="button"
             onClick={() => navigate('/organization/shop/new')}
-            className="inline-flex items-center gap-2 rounded-lg bg-[#2f6fed] px-3.5 py-2 text-sm font-medium text-white"
+            className="inline-flex cursor-pointer items-center gap-2 rounded-lg bg-[#2f6fed] px-3.5 py-2 text-sm font-medium text-white"
           >
             <Plus size={15} />
             Add Shop
@@ -384,10 +254,10 @@ function ShopPage() {
       </div>
 
       <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <Stat label="Shops" value={register.length} />
-        <Stat label="Active" value={activeCount} />
-        <Stat label="Branches" value={branches.length} />
-        <Stat label="Assigned staff" value={staffCount} />
+        <Stat label="Shops" value={summary?.shops?.total ?? shopsQuery.data?.meta?.total ?? '—'} />
+        <Stat label="Active" value={summary?.shops?.active ?? '—'} />
+        <Stat label="Branches" value={summary?.branches ?? '—'} />
+        <Stat label="Assigned staff" value={summary?.assignedStaff ?? '—'} />
       </section>
 
       {tab === 'Shops' ? (
@@ -397,10 +267,7 @@ function ShopPage() {
               <Search size={15} className="absolute top-1/2 left-3 -translate-y-1/2 text-slate-400" />
               <input
                 value={query}
-                onChange={(event) => {
-                  setQuery(event.target.value)
-                  setPage(1)
-                }}
+                onChange={(event) => setQuery(event.target.value)}
                 placeholder="Search name or code"
                 className="w-full rounded-lg border border-slate-200 bg-white py-2 pr-3 pl-9 text-sm outline-none focus:border-sky-400"
               />
@@ -408,31 +275,27 @@ function ShopPage() {
             <select
               aria-label="Branch"
               value={branch}
-              onChange={(event) => {
-                setBranch(event.target.value)
-                setPage(1)
-              }}
+              onChange={(event) => setBranch(event.target.value)}
               className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:border-sky-400"
             >
               <option value="">All branches</option>
-              {branches.map((item) => (
-                <option key={item} value={item}>
-                  {item}
+              {branchOptions.map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.name}
                 </option>
               ))}
             </select>
             <select
               aria-label="Status"
               value={status}
-              onChange={(event) => {
-                setStatus(event.target.value)
-                setPage(1)
-              }}
+              onChange={(event) => setStatus(event.target.value)}
               className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:border-sky-400"
             >
-              <option value="">All statuses</option>
-              <option value="Active">Active</option>
-              <option value="Inactive">Inactive</option>
+              {statusOptions.map((option) => (
+                <option key={option.label} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
             </select>
             <button type="button" onClick={clearFilters} className="px-2 py-2 text-sm font-medium text-[#2f6fed] lg:ml-auto">
               Clear filters
@@ -450,15 +313,21 @@ function ShopPage() {
                   columns={shopColumns(viewShop, editShop)}
                   data={pageRows}
                   pagination
-                  rowsPerPage={pageSize}
+                  rowsPerPage={limit}
                   page={page}
-                  totalCount={filtered.length}
+                  totalCount={total}
                   onPageChange={setPage}
                   className="h-auto! max-h-none!"
                   contentClassName="min-w-full"
-                  emptyContent="No shops match these filters."
+                  emptyContent={
+                    shopsQuery.isError
+                      ? shopsQuery.error.response?.data?.message || 'Could not load shops.'
+                      : shopsQuery.isLoading
+                        ? 'Loading shops...'
+                        : 'No shops match these filters.'
+                  }
                   summary={
-                    filtered.length
+                    total
                       ? `Showing ${pageRows.length} ${pageRows.length === 1 ? 'record' : 'records'}${selected ? ' · 1 selected' : ''}`
                       : undefined
                   }
@@ -469,9 +338,7 @@ function ShopPage() {
 
               <section className="rounded-2xl border border-[#d7e6ff] bg-[#eef4ff] px-5 py-4">
                 <h2 className="text-sm font-semibold text-[#2f6fed]">Organization rules</h2>
-                <p className="mt-1 text-[13px] leading-5 text-slate-500">
-                  Select the branch before choosing a linked warehouse. Only warehouses in that branch are available.
-                </p>
+                <p className="mt-1 text-[13px] leading-5 text-slate-500">{shopRule}</p>
               </section>
 
               <section className="rounded-2xl border border-slate-200/80 bg-white shadow-sm">
@@ -483,24 +350,32 @@ function ShopPage() {
                   columns={employeeColumns}
                   data={employees}
                   pagination
-                  rowsPerPage={pageSize}
+                  rowsPerPage={limit}
                   className="h-auto! max-h-none!"
                   contentClassName="min-w-full"
-                  emptyContent={selected ? 'This shop has no assigned employees.' : 'Select a shop to see assigned employees.'}
+                  emptyContent={
+                    !selected
+                      ? 'Select a shop to see assigned employees.'
+                      : detailQuery.isLoading
+                        ? 'Loading employees...'
+                        : detailQuery.isError
+                          ? detailQuery.error.response?.data?.message || 'Could not load assigned employees.'
+                          : 'This shop has no assigned employees.'
+                  }
                   summary={
                     employees.length
                       ? `Showing ${employees.length} ${employees.length === 1 ? 'record' : 'records'}${selectedEmployee ? ' · 1 selected' : ''}`
                       : undefined
                   }
                   onRowPress={(employee) => setEmployeeId(employee.id)}
-                  rowClassName={(employee) =>
-                    selectedEmployee?.id === employee.id ? 'row-soft' : 'hover:bg-slate-50'
-                  }
+                  rowClassName={(employee) => (selectedEmployee?.id === employee.id ? 'row-soft' : 'hover:bg-slate-50')}
                 />
               </section>
             </div>
 
-            {selected ? <ShopDetail shop={selected} /> : null}
+            {profile ? (
+              <ShopDetail shop={profile} statusPending={updateStatus.isPending} onStatusChange={changeStatus} />
+            ) : null}
           </div>
         </>
       ) : (
@@ -519,26 +394,53 @@ function Stat({ label, value }) {
   )
 }
 
-function ShopDetail({ shop }) {
+function ShopDetail({ shop, statusPending, onStatusChange }) {
   return (
     <aside className="rounded-2xl border border-slate-200/80 bg-white px-5 py-5 shadow-sm xl:sticky xl:top-4">
-      <h2 className="text-[18px] font-semibold text-slate-900">{shop.name}</h2>
-      <p className="mt-1 text-[13px] text-slate-400">{shop.code}</p>
+      <h2 className="text-[18px] font-semibold text-slate-900">{display(shop.name)}</h2>
+      <p className="mt-1 text-[13px] text-slate-400">{display(shop.code)}</p>
       <div className="mt-3">
         <StatusPill status={shop.status} />
       </div>
+      <StatusSwitcher value={shop.statusValue} pending={statusPending} onChange={onStatusChange} />
       <p className="mt-4 text-[13px] leading-5 text-slate-500">{shop.summary}</p>
       <dl className="mt-5 space-y-3.5">
-        <Fact label="Created by" value={shop.createdBy} />
+        <Fact label="Branch" value={display(shop.branch)} />
         <Fact label="Created on" value={shop.createdOn} />
         <Fact label="Updated" value={shop.updatedOn} />
         <Fact label="Record status" value={shop.status} />
       </dl>
       <div className="mt-5 rounded-xl bg-[#eef4ff] px-4 py-3.5">
         <p className="text-[13px] font-semibold text-[#2f6fed]">Access and relationships</p>
-        <p className="mt-1 text-[13px] leading-5 text-slate-600">{shop.access}</p>
+        <p className="mt-1 text-[13px] leading-5 text-slate-600">{shopAccess}</p>
       </div>
     </aside>
+  )
+}
+
+function StatusSwitcher({ value, pending, onChange }) {
+  return (
+    <div className="mt-4">
+      <p className="text-[12px] font-medium text-slate-400">Shop status</p>
+      <div className="mt-2 grid grid-cols-2 gap-1 rounded-xl bg-slate-100 p-1">
+        {shopStatuses.map((option) => {
+          const selected = value === option.value
+          return (
+            <button
+              key={option.value}
+              type="button"
+              disabled={pending}
+              onClick={() => onChange(option.value)}
+              className={`cursor-pointer rounded-lg px-1 py-1.5 text-[12px] font-medium disabled:cursor-not-allowed disabled:opacity-60 ${
+                selected ? `${statusClassName(option.label)} shadow-sm` : 'text-slate-500 hover:bg-white'
+              }`}
+            >
+              {option.label}
+            </button>
+          )
+        })}
+      </div>
+    </div>
   )
 }
 
