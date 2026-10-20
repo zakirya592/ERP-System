@@ -30,6 +30,7 @@ export const sidebarMenu = [
       { key: 'warehouses', label: 'Warehouses', to: '/organization/warehouses' },
       { key: 'shop', label: 'Shop', to: '/organization/shop' },
       { key: 'employees', label: 'Employees', to: '/organization/employees' },
+      { key: 'owners', label: 'Owners', to: '/organization/owners' },
     ],
   },
   {

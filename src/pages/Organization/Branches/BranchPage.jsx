@@ -244,6 +244,10 @@ function BranchPage() {
                 navigate('/organization/employees')
                 return
               }
+              if (item === 'Owners') {
+                navigate('/organization/owners')
+                return
+              }
               setTab(item)
             }}
             className={

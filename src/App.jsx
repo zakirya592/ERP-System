@@ -37,6 +37,10 @@ import AddEmployeePage from './pages/Organization/Employees/AddEmployeePage.jsx'
 import EditEmployeePage from './pages/Organization/Employees/EditEmployeePage.jsx'
 import EmployeePage from './pages/Organization/Employees/EmployeePage.jsx'
 import ViewEmployeePage from './pages/Organization/Employees/ViewEmployeePage.jsx'
+import AddOwnerPage from './pages/Organization/Owners/AddOwnerPage.jsx'
+import EditOwnerPage from './pages/Organization/Owners/EditOwnerPage.jsx'
+import OwnerPage from './pages/Organization/Owners/OwnerPage.jsx'
+import ViewOwnerPage from './pages/Organization/Owners/ViewOwnerPage.jsx'
 import ModulePage from './pages/ModulePage.jsx'
 
 function App() {
@@ -61,6 +65,10 @@ function App() {
         <Route path="/organization/employees/:id/edit" element={<EditEmployeePage />} />
         <Route path="/organization/employees/:id" element={<ViewEmployeePage />} />
         <Route path="/organization/employees" element={<EmployeePage />} />
+        <Route path="/organization/owners/new" element={<AddOwnerPage />} />
+        <Route path="/organization/owners/:id/edit" element={<EditOwnerPage />} />
+        <Route path="/organization/owners/:id" element={<ViewOwnerPage />} />
+        <Route path="/organization/owners" element={<OwnerPage />} />
         <Route path="/sales/sales" element={<SalesPage />} />
         <Route path="/sales/sales/new" element={<NewSalePage />} />
         <Route path="/sales/returns" element={<SalesReturnPage />} />
