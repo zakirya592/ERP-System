@@ -49,6 +49,10 @@ import AddQuantityUnitPage from './pages/MasterData/QuantityUnits/AddQuantityUni
 import QuantityUnitsPage from './pages/MasterData/QuantityUnits/QuantityUnitsPage.jsx'
 import UpdateQuantityUnitPage from './pages/MasterData/QuantityUnits/UpdateQuantityUnitPage.jsx'
 import ViewQuantityUnitPage from './pages/MasterData/QuantityUnits/ViewQuantityUnitPage.jsx'
+import AddPackingUnitPage from './pages/MasterData/PackingUnits/AddPackingUnitPage.jsx'
+import PackingUnitsPage from './pages/MasterData/PackingUnits/PackingUnitsPage.jsx'
+import UpdatePackingUnitPage from './pages/MasterData/PackingUnits/UpdatePackingUnitPage.jsx'
+import ViewPackingUnitPage from './pages/MasterData/PackingUnits/ViewPackingUnitPage.jsx'
 import ModulePage from './pages/ModulePage.jsx'
 
 function App() {
@@ -104,6 +108,10 @@ function App() {
         <Route path="/master-data/units/:id/edit" element={<UpdateQuantityUnitPage />} />
         <Route path="/master-data/units/:id" element={<ViewQuantityUnitPage />} />
         <Route path="/master-data/units" element={<QuantityUnitsPage />} />
+        <Route path="/master-data/packing-units/new" element={<AddPackingUnitPage />} />
+        <Route path="/master-data/packing-units/:id/edit" element={<UpdatePackingUnitPage />} />
+        <Route path="/master-data/packing-units/:id" element={<ViewPackingUnitPage />} />
+        <Route path="/master-data/packing-units" element={<PackingUnitsPage />} />
         <Route path=":section/:page" element={<ModulePage />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
