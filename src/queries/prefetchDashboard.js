@@ -1,4 +1,5 @@
 import { getBranches } from '../api/branches.api'
+import { getEmployees } from '../api/employees.api'
 import { getPermissions } from '../api/permissions.api'
 import { getRoles } from '../api/roles.api'
 import { getUsers } from '../api/users.api'
@@ -11,6 +12,7 @@ export const dashboardListParams = {
   roles: { page: 1, limit: 20, search: '', status: '' },
   permissions: { page: 1, limit: 20, search: '' },
   branches: { page: 1, limit: 20, search: '', status: '' },
+  employees: { page: 1, limit: 20, search: '', status: '' },
 }
 
 export const dashboardListQueries = [
@@ -32,6 +34,11 @@ export const dashboardListQueries = [
   {
     queryKey: queryKeys.branches.list(dashboardListParams.branches),
     queryFn: () => getBranches(dashboardListParams.branches),
+    staleTime,
+  },
+  {
+    queryKey: queryKeys.employees.list(dashboardListParams.employees),
+    queryFn: () => getEmployees(dashboardListParams.employees),
     staleTime,
   },
 ]

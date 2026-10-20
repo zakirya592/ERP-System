@@ -1,23 +1,18 @@
-import { useRef, useState } from 'react'
+import { useState } from 'react'
 import { ArrowLeft, ChevronDown } from 'lucide-react'
 import { Link, useNavigate } from 'react-router-dom'
 import { toast } from 'react-toastify'
+import { useBranches } from '../../../queries/branches/branches.queries.js'
+import { useCreateEmployee } from '../../../queries/employees/employees.queries.js'
 import {
-  addEmployeeRecord,
-  buildAssignments,
+  apiFields,
   createLoginOptions,
   employeeAccess,
-  employeeBranches,
   employeeSummary,
   employmentStatuses,
   employmentTypes,
   erpRoles,
-  loginStatuses,
-  nextEmployeeCode,
-  employeeCodeTaken,
-  optionsForBranch,
-  shopsByBranch,
-  warehousesByBranch,
+  toEmployeeBody,
 } from './employeeRecords.js'
 
 const steps = [
@@ -27,6 +22,13 @@ const steps = [
   'Save the record',
 ]
 
+function todayInput() {
+  const date = new Date()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${date.getFullYear()}-${month}-${day}`
+}
+
 const emptyForm = {
   name: '',
   code: '',
@@ -34,108 +36,32 @@ const emptyForm = {
   phone: '',
   department: '',
   jobTitle: '',
-  employmentType: '',
-  joiningDate: '',
+  employmentType: 'full_time',
+  joiningDate: todayInput(),
   reportsTo: '',
-  status: '',
-  branch: '',
-  shop: '',
-  warehouse: '',
-  erpRole: '',
+  status: 'active',
+  branchId: '',
+  shopAssignment: '',
+  warehouseAccess: '',
+  erpRole: 'branch_manager',
   createLogin: '',
-  loginStatus: '',
-  documentType: '',
-  documentReference: '',
-  fileName: '',
   notes: '',
-}
-
-function currentUserName() {
-  try {
-    const user = JSON.parse(localStorage.getItem('user') || 'null')
-    return user?.name || 'Amina Rahman'
-  } catch {
-    return 'Amina Rahman'
-  }
-}
-
-function formatToday() {
-  return new Date().toLocaleDateString('en-US', {
-    month: 'short',
-    day: '2-digit',
-    year: 'numeric',
-  })
-}
-
-function toEmployee(form) {
-  const code = form.code.trim() || nextEmployeeCode()
-  const status = form.status || 'Active'
-  const today = formatToday()
-  return {
-    id: code,
-    code,
-    name: form.name.trim(),
-    email: form.email.trim(),
-    phone: form.phone.trim(),
-    department: form.department.trim(),
-    jobTitle: form.jobTitle.trim(),
-    employmentType: form.employmentType.trim(),
-    joiningDate: form.joiningDate.trim(),
-    reportsTo: form.reportsTo.trim(),
-    status,
-    branch: form.branch,
-    shop: form.shop,
-    warehouse: form.warehouse,
-    erpRole: form.erpRole,
-    createLogin: form.createLogin,
-    loginStatus: form.loginStatus,
-    documentType: form.documentType.trim(),
-    documentReference: form.documentReference.trim(),
-    fileName: form.fileName.trim(),
-    notes: form.notes.trim(),
-    createdBy: currentUserName(),
-    createdOn: today,
-    updatedOn: today,
-    summary: employeeSummary,
-    access: employeeAccess,
-    assignments: buildAssignments(form, code),
-  }
 }
 
 function AddEmployeePage() {
   const navigate = useNavigate()
-  const fileRef = useRef(null)
+  const createEmployee = useCreateEmployee()
+  const branchesQuery = useBranches({ page: 1, limit: 100, search: '', status: '' })
+  const branchOptions = (branchesQuery.data?.data || []).map((branch) => ({
+    value: branch._id,
+    label: branch.name,
+  }))
   const [form, setForm] = useState(emptyForm)
   const [errors, setErrors] = useState({})
 
-  const shopOptions = optionsForBranch(shopsByBranch, form.branch)
-  const warehouseOptions = optionsForBranch(warehousesByBranch, form.branch)
-
   function update(key, value) {
-    setForm((current) => {
-      const next = { ...current, [key]: value }
-      if (key === 'branch') {
-        const shops = optionsForBranch(shopsByBranch, value)
-        const warehouses = optionsForBranch(warehousesByBranch, value)
-        if (current.shop && !shops.includes(current.shop)) next.shop = ''
-        if (current.warehouse && !warehouses.includes(current.warehouse)) next.warehouse = ''
-      }
-      return next
-    })
+    setForm((current) => ({ ...current, [key]: value }))
     setErrors((current) => ({ ...current, [key]: '' }))
-  }
-
-  function onFile(file) {
-    if (!file) {
-      update('fileName', '')
-      return
-    }
-    const allowed = ['application/pdf', 'image/jpeg', 'image/png']
-    if (file.type && !allowed.includes(file.type)) {
-      setErrors((current) => ({ ...current, fileName: 'Use a PDF, JPG, or PNG file.' }))
-      return
-    }
-    update('fileName', file.name)
   }
 
   function validate() {
@@ -145,23 +71,40 @@ function AddEmployeePage() {
     else if (!form.email.includes('@')) nextErrors.email = 'Enter a valid email.'
     if (!form.department.trim()) nextErrors.department = 'Enter a department.'
     if (!form.jobTitle.trim()) nextErrors.jobTitle = 'Enter a job title.'
-    if (!form.branch) nextErrors.branch = 'Select a primary branch.'
-    if (form.code.trim() && employeeCodeTaken(form.code)) nextErrors.code = 'This employee code is already in use.'
+    if (!form.branchId) nextErrors.branchId = 'Select a primary branch.'
     setErrors(nextErrors)
     return Object.keys(nextErrors).length === 0
   }
 
+  function applyApiErrors(error) {
+    const apiErrors = error.response?.data?.errors
+    if (!Array.isArray(apiErrors)) return
+    const fieldErrors = {}
+    apiErrors.forEach((item) => {
+      const key = apiFields[item.field] || item.field
+      if (key && !fieldErrors[key]) fieldErrors[key] = item.message
+    })
+    setErrors((current) => ({ ...current, ...fieldErrors }))
+  }
+
   function save(andAnother) {
     if (!validate()) return
-    const employee = addEmployeeRecord(toEmployee(form))
-    toast.success(`${employee.name} saved.`)
-    if (andAnother) {
-      setForm(emptyForm)
-      setErrors({})
-      if (fileRef.current) fileRef.current.value = ''
-      return
-    }
-    navigate('/organization/employees', { state: { selectedId: employee.id } })
+    createEmployee.mutate(toEmployeeBody(form), {
+      onSuccess: (data) => {
+        toast.success(data?.message || `${form.name.trim()} saved.`)
+        if (andAnother) {
+          setForm(emptyForm)
+          setErrors({})
+          return
+        }
+        const id = data?.data?._id
+        navigate('/organization/employees', { state: id ? { selectedId: id } : undefined })
+      },
+      onError: (error) => {
+        applyApiErrors(error)
+        toast.error(error.response?.data?.message || 'Could not save the employee.')
+      },
+    })
   }
 
   return (
@@ -200,52 +143,33 @@ function AddEmployeePage() {
             <Field label="Full name" required value={form.name} error={errors.name} placeholder="Enter full name" onChange={(value) => update('name', value)} />
             <Field label="Employee code" value={form.code} error={errors.code} placeholder="Enter employee code" onChange={(value) => update('code', value)} />
             <Field label="Work email" required type="email" value={form.email} error={errors.email} placeholder="Enter work email" onChange={(value) => update('email', value)} />
-            <Field label="Phone" value={form.phone} placeholder="Enter phone" onChange={(value) => update('phone', value)} />
+            <Field label="Phone" value={form.phone} error={errors.phone} placeholder="Enter phone" onChange={(value) => update('phone', value)} />
           </FormCard>
 
           <FormCard title="Employment and reporting">
             <Field label="Department" required value={form.department} error={errors.department} placeholder="Enter department" onChange={(value) => update('department', value)} />
             <Field label="Job title" required value={form.jobTitle} error={errors.jobTitle} placeholder="Enter job title" onChange={(value) => update('jobTitle', value)} />
-            <SelectField label="Employment type" value={form.employmentType} placeholder="Select employment type" options={employmentTypes} onChange={(value) => update('employmentType', value)} />
-            <Field label="Joining date" value={form.joiningDate} placeholder="Select joining date" onChange={(value) => update('joiningDate', value)} />
-            <Field label="Reports to" value={form.reportsTo} placeholder="Enter reports to" onChange={(value) => update('reportsTo', value)} />
-            <SelectField label="Employment status" value={form.status} placeholder="Select employment status" options={employmentStatuses} onChange={(value) => update('status', value)} />
+            <SelectField label="Employment type" value={form.employmentType} error={errors.employmentType} options={employmentTypes} onChange={(value) => update('employmentType', value)} />
+            <Field label="Joining date" type="date" value={form.joiningDate} error={errors.joiningDate} onChange={(value) => update('joiningDate', value)} />
+            <Field label="Reports to" value={form.reportsTo} error={errors.reportsTo} placeholder="Enter reports to" onChange={(value) => update('reportsTo', value)} />
+            <SelectField label="Employment status" value={form.status} error={errors.status} options={employmentStatuses} onChange={(value) => update('status', value)} />
           </FormCard>
 
           <FormCard title="Workspace assignment and access">
-            <SelectField label="Primary branch" required value={form.branch} error={errors.branch} placeholder="Select primary branch" options={employeeBranches} onChange={(value) => update('branch', value)} />
-            <SelectField label="Shop assignment" value={form.shop} placeholder="Select shop assignment" options={shopOptions} onChange={(value) => update('shop', value)} />
-            <SelectField label="Warehouse access" value={form.warehouse} placeholder="Enter warehouse access" options={warehouseOptions} onChange={(value) => update('warehouse', value)} />
-            <SelectField label="ERP role" value={form.erpRole} placeholder="Select ERP role" options={erpRoles} onChange={(value) => update('erpRole', value)} />
-            <SelectField label="Create login" value={form.createLogin} placeholder="Select create login" options={createLoginOptions} onChange={(value) => update('createLogin', value)} />
-            <SelectField label="Login status" value={form.loginStatus} placeholder="Enter login status" options={loginStatuses} onChange={(value) => update('loginStatus', value)} />
+            <SelectField label="Primary branch" required value={form.branchId} error={errors.branchId} placeholder="Select primary branch" options={branchOptions} onChange={(value) => update('branchId', value)} />
+            <Field label="Shop assignment" value={form.shopAssignment} error={errors.shopAssignment} placeholder="Enter shop assignment" onChange={(value) => update('shopAssignment', value)} />
+            <Field label="Warehouse access" value={form.warehouseAccess} error={errors.warehouseAccess} placeholder="Enter warehouse access" onChange={(value) => update('warehouseAccess', value)} />
+            <SelectField label="ERP role" value={form.erpRole} error={errors.erpRole} options={erpRoles} onChange={(value) => update('erpRole', value)} />
+            <SelectField label="Create login" value={form.createLogin} error={errors.createLogin} placeholder="Select create login" options={createLoginOptions} onChange={(value) => update('createLogin', value)} />
+            {branchesQuery.isError && (
+              <p className="text-[13px] text-rose-500 md:col-span-2">Could not load branches.</p>
+            )}
             <p className="text-[13px] leading-5 text-slate-400 md:col-span-2">
               An employee record can be saved without ERP login. Restrict login creation only when access is required.
             </p>
           </FormCard>
 
-          <FormCard title="Documents and notes">
-            <Field label="Document type" value={form.documentType} placeholder="Employment contract / ID" onChange={(value) => update('documentType', value)} />
-            <Field label="Document reference" value={form.documentReference} placeholder="Enter document reference" onChange={(value) => update('documentReference', value)} />
-            <div className="md:col-span-2">
-              <span className="text-sm text-slate-700">Upload document</span>
-              <p className="mt-1 text-[13px] text-slate-400">
-                PDF, JPG or PNG ·{' '}
-                <button type="button" onClick={() => fileRef.current?.click()} className="font-medium text-[#2f6fed]">
-                  Choose a file
-                </button>{' '}
-                to attach supporting evidence.
-              </p>
-              <input
-                ref={fileRef}
-                type="file"
-                accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png"
-                className="hidden"
-                onChange={(event) => onFile(event.target.files?.[0])}
-              />
-              {form.fileName && <p className="mt-1 text-sm text-slate-700">{form.fileName}</p>}
-              {errors.fileName && <p className="mt-1 text-xs text-rose-500">{errors.fileName}</p>}
-            </div>
+          <FormCard title="Notes">
             <label className="block md:col-span-2">
               <span className="text-sm text-slate-700">Internal notes</span>
               <textarea
@@ -255,6 +179,7 @@ function AddEmployeePage() {
                 onChange={(event) => update('notes', event.target.value)}
                 className="mt-1.5 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 outline-none placeholder:text-slate-400 focus:border-sky-400"
               />
+              {errors.notes && <p className="mt-1 text-xs text-rose-500">{errors.notes}</p>}
             </label>
           </FormCard>
 
@@ -266,13 +191,18 @@ function AddEmployeePage() {
             >
               Cancel
             </button>
-            <button type="submit" className="cursor-pointer rounded-lg bg-[#2f6fed] px-4 py-2 text-sm font-medium text-white">
-              Save Employee
+            <button
+              type="submit"
+              disabled={createEmployee.isPending}
+              className="cursor-pointer rounded-lg bg-[#2f6fed] px-4 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {createEmployee.isPending ? 'Saving...' : 'Save Employee'}
             </button>
             <button
               type="button"
+              disabled={createEmployee.isPending}
               onClick={() => save(true)}
-              className="cursor-pointer rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700"
+              className="cursor-pointer rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 disabled:cursor-not-allowed disabled:opacity-60"
             >
               Save and add another
             </button>
@@ -357,8 +287,8 @@ function SelectField({ label, required = false, value, error, placeholder, optio
         >
           {placeholder && <option value="">{placeholder}</option>}
           {options.map((option) => (
-            <option key={option} value={option}>
-              {option}
+            <option key={option.value} value={option.value}>
+              {option.label}
             </option>
           ))}
         </select>

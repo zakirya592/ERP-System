@@ -1,120 +1,42 @@
-import { useRef, useState } from 'react'
+import { useState } from 'react'
 import { ChevronDown } from 'lucide-react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { toast } from 'react-toastify'
+import { useBranches } from '../../../queries/branches/branches.queries.js'
+import { useEmployee, useUpdateEmployee } from '../../../queries/employees/employees.queries.js'
 import {
-  buildAssignments,
+  apiFields,
+  branchNameOf,
   createLoginOptions,
-  employeeBranches,
-  employeeCodeTaken,
   employeeSummary,
   employmentStatuses,
   employmentTypes,
   erpRoles,
-  loginStatuses,
-  mergeEmployeeRegister,
-  optionsForBranch,
-  shopsByBranch,
-  updateEmployeeRecord,
-  useAddedEmployees,
-  useEmployeeOverrides,
-  warehousesByBranch,
+  formFromEmployee,
+  formatDate,
+  statusClassName,
+  toEmployeeBody,
+  withOption,
 } from './employeeRecords.js'
-import { employees as seedEmployees } from './EmployeePage.jsx'
-
-const statusClass = {
-  Active: 'bg-[#e7f8ee] text-[#1f9d57]',
-  'On leave': 'bg-[#eef1f4] text-[#6b7280]',
-  Inactive: 'bg-[#eef1f4] text-[#8b95a5]',
-}
-
-function withCurrent(options, current) {
-  const value = String(current || '').trim()
-  if (!value || options.includes(value)) return options
-  return [value, ...options]
-}
-
-function formatToday() {
-  return new Date().toLocaleDateString('en-US', {
-    month: 'short',
-    day: '2-digit',
-    year: 'numeric',
-  })
-}
-
-function fileKind(name) {
-  const extension = String(name).split('.').pop()?.toUpperCase()
-  if (!extension || extension === String(name).toUpperCase()) return 'FILE'
-  if (extension === 'JPEG') return 'JPG'
-  return extension
-}
-
-function formFromEmployee(employee) {
-  return {
-    name: employee.name || '',
-    code: employee.code || '',
-    email: employee.email || '',
-    phone: employee.phone || '',
-    department: employee.department || '',
-    jobTitle: employee.jobTitle || '',
-    employmentType: employee.employmentType || '',
-    joiningDate: employee.joiningDate || '',
-    reportsTo: employee.reportsTo || '',
-    status: employee.status || 'Active',
-    branch: employee.branch || '',
-    shop: employee.shop || '',
-    warehouse: employee.warehouse || '',
-    erpRole: employee.erpRole || '',
-    createLogin: employee.createLogin || '',
-    loginStatus: employee.loginStatus || '',
-    documentType: employee.documentType || '',
-    documentReference: employee.documentReference || '',
-    fileName: employee.fileName || '',
-    notes: employee.notes || '',
-  }
-}
-
-function toUpdatedEmployee(employee, form) {
-  const code = form.code.trim()
-  return {
-    ...employee,
-    code,
-    name: form.name.trim(),
-    email: form.email.trim(),
-    phone: form.phone.trim(),
-    department: form.department.trim(),
-    jobTitle: form.jobTitle.trim(),
-    employmentType: form.employmentType.trim(),
-    joiningDate: form.joiningDate.trim(),
-    reportsTo: form.reportsTo.trim(),
-    status: form.status || 'Active',
-    branch: form.branch,
-    shop: form.shop,
-    warehouse: form.warehouse,
-    erpRole: form.erpRole,
-    createLogin: form.createLogin,
-    loginStatus: form.loginStatus,
-    documentType: form.documentType.trim(),
-    documentReference: form.documentReference.trim(),
-    fileName: form.fileName.trim(),
-    notes: form.notes.trim(),
-    updatedOn: formatToday(),
-    assignments: buildAssignments(form, employee.id, employee.assignments || []),
-  }
-}
 
 function EditEmployeePage() {
   const { id } = useParams()
-  const navigate = useNavigate()
-  const fileRef = useRef(null)
-  const addedEmployees = useAddedEmployees()
-  const overrides = useEmployeeOverrides()
-  const employee =
-    mergeEmployeeRegister(addedEmployees, seedEmployees, overrides).find((item) => item.id === id || item.code === id) || null
-  const [form, setForm] = useState(() => (employee ? formFromEmployee(employee) : null))
-  const [errors, setErrors] = useState({})
+  const employeeQuery = useEmployee(id)
+  const employee = employeeQuery.data?.data
 
-  if (!employee || !form) {
+  if (employeeQuery.isLoading) {
+    return <Message>Loading employee...</Message>
+  }
+
+  if (employeeQuery.isError) {
+    return (
+      <Message className="text-rose-500">
+        {employeeQuery.error.response?.data?.message || 'Could not load this employee.'}
+      </Message>
+    )
+  }
+
+  if (!employee) {
     return (
       <section className="rounded-2xl border border-slate-200/80 bg-white px-5 py-8 text-center shadow-sm">
         <h1 className="text-sm font-semibold text-slate-900">Employee not found</h1>
@@ -125,31 +47,28 @@ function EditEmployeePage() {
     )
   }
 
-  const shopOptions = withCurrent(optionsForBranch(shopsByBranch, form.branch), form.shop)
-  const warehouseOptions = withCurrent(optionsForBranch(warehousesByBranch, form.branch), form.warehouse)
+  return <EditEmployeeForm key={employee._id} employee={employee} />
+}
+
+function EditEmployeeForm({ employee }) {
+  const { id } = useParams()
+  const navigate = useNavigate()
+  const updateEmployee = useUpdateEmployee()
+  const branchesQuery = useBranches({ page: 1, limit: 100, search: '', status: '' })
+  const [form, setForm] = useState(() => formFromEmployee(employee))
+  const [errors, setErrors] = useState({})
+  const branchOptions = withOption(
+    (branchesQuery.data?.data || []).map((branch) => ({
+      value: branch._id,
+      label: branch.name,
+    })),
+    form.branchId,
+    branchNameOf(employee),
+  )
 
   function update(key, value) {
-    setForm((current) => {
-      const next = { ...current, [key]: value }
-      if (key === 'branch') {
-        const shops = optionsForBranch(shopsByBranch, value)
-        const warehouses = optionsForBranch(warehousesByBranch, value)
-        if (current.shop && !shops.includes(current.shop)) next.shop = ''
-        if (current.warehouse && !warehouses.includes(current.warehouse)) next.warehouse = ''
-      }
-      return next
-    })
+    setForm((current) => ({ ...current, [key]: value }))
     setErrors((current) => ({ ...current, [key]: '' }))
-  }
-
-  function onFile(file) {
-    if (!file) return
-    const allowed = ['application/pdf', 'image/jpeg', 'image/png']
-    if (file.type && !allowed.includes(file.type)) {
-      setErrors((current) => ({ ...current, fileName: 'Use a PDF, JPG, or PNG file.' }))
-      return
-    }
-    update('fileName', file.name)
   }
 
   function validate() {
@@ -160,19 +79,41 @@ function EditEmployeePage() {
     else if (!form.email.includes('@')) nextErrors.email = 'Enter a valid email.'
     if (!form.department.trim()) nextErrors.department = 'Enter a department.'
     if (!form.jobTitle.trim()) nextErrors.jobTitle = 'Enter a job title.'
-    if (!form.branch) nextErrors.branch = 'Select a primary branch.'
-    if (form.code.trim() && employeeCodeTaken(form.code, employee.code)) nextErrors.code = 'This employee code is already in use.'
+    if (!form.branchId) nextErrors.branchId = 'Select a primary branch.'
     setErrors(nextErrors)
     return Object.keys(nextErrors).length === 0
+  }
+
+  function applyApiErrors(error) {
+    const apiErrors = error.response?.data?.errors
+    if (!Array.isArray(apiErrors)) return
+    const fieldErrors = {}
+    apiErrors.forEach((item) => {
+      const key = apiFields[item.field] || item.field
+      if (key && !fieldErrors[key]) fieldErrors[key] = item.message
+    })
+    setErrors((current) => ({ ...current, ...fieldErrors }))
   }
 
   function save(event) {
     event.preventDefault()
     if (!validate()) return
-    const updated = updateEmployeeRecord(toUpdatedEmployee(employee, form))
-    toast.success(`${updated.name} updated.`)
-    navigate(`/organization/employees/${updated.id}`)
+    updateEmployee.mutate(
+      { id, ...toEmployeeBody(form, employee.assignments || []) },
+      {
+        onSuccess: (data) => {
+          toast.success(data?.message || `${form.name.trim()} updated.`)
+          navigate(`/organization/employees`)
+        },
+        onError: (error) => {
+          applyApiErrors(error)
+          toast.error(error.response?.data?.message || 'Could not update the employee.')
+        },
+      },
+    )
   }
+
+  const statusLabel = employmentStatuses.find((option) => option.value === form.status)?.label || form.status || 'Active'
 
   return (
     <form className="space-y-4" onSubmit={save}>
@@ -206,58 +147,30 @@ function EditEmployeePage() {
             <Field label="Full name" required value={form.name} error={errors.name} placeholder="Enter full name" onChange={(value) => update('name', value)} />
             <Field label="Employee code" value={form.code} error={errors.code} placeholder="Enter employee code" onChange={(value) => update('code', value)} />
             <Field label="Work email" required type="email" value={form.email} error={errors.email} placeholder="Enter work email" onChange={(value) => update('email', value)} />
-            <Field label="Phone" value={form.phone} placeholder="Enter contact phone" onChange={(value) => update('phone', value)} />
+            <Field label="Phone" value={form.phone} error={errors.phone} placeholder="Enter contact phone" onChange={(value) => update('phone', value)} />
           </FormCard>
 
           <FormCard title="Employment and reporting">
             <Field label="Department" required value={form.department} error={errors.department} placeholder="Enter department" onChange={(value) => update('department', value)} />
             <Field label="Job title" required value={form.jobTitle} error={errors.jobTitle} placeholder="Enter job title" onChange={(value) => update('jobTitle', value)} />
-            <SelectField label="Employment type" value={form.employmentType} placeholder="Select employment type" options={withCurrent(employmentTypes, form.employmentType)} onChange={(value) => update('employmentType', value)} />
-            <Field label="Joining date" value={form.joiningDate} placeholder="Select joining date" onChange={(value) => update('joiningDate', value)} />
-            <Field label="Reports to" value={form.reportsTo} placeholder="Enter reports to" onChange={(value) => update('reportsTo', value)} />
-            <SelectField label="Employment status" value={form.status} placeholder="Select employment status" options={employmentStatuses} onChange={(value) => update('status', value)} />
+            <SelectField label="Employment type" value={form.employmentType} error={errors.employmentType} options={withOption(employmentTypes, form.employmentType)} onChange={(value) => update('employmentType', value)} />
+            <Field label="Joining date" type="date" value={form.joiningDate} error={errors.joiningDate} onChange={(value) => update('joiningDate', value)} />
+            <Field label="Reports to" value={form.reportsTo} error={errors.reportsTo} placeholder="Enter reports to" onChange={(value) => update('reportsTo', value)} />
+            <SelectField label="Employment status" value={form.status} error={errors.status} options={withOption(employmentStatuses, form.status, employee.statusLabel)} onChange={(value) => update('status', value)} />
           </FormCard>
 
           <FormCard title="Workspace assignment and access">
-            <SelectField label="Primary branch" required value={form.branch} error={errors.branch} placeholder="Select primary branch" options={withCurrent(employeeBranches, form.branch)} onChange={(value) => update('branch', value)} />
-            <SelectField label="Shop assignment" value={form.shop} placeholder="Select shop assignment" options={shopOptions} onChange={(value) => update('shop', value)} />
-            <SelectField label="Warehouse access" value={form.warehouse} placeholder="Enter warehouse access" options={warehouseOptions} onChange={(value) => update('warehouse', value)} />
-            <SelectField label="ERP role" value={form.erpRole} placeholder="Select ERP role" options={withCurrent(erpRoles, form.erpRole)} onChange={(value) => update('erpRole', value)} />
-            <SelectField label="Create login" value={form.createLogin} placeholder="Select create login" options={withCurrent(createLoginOptions, form.createLogin)} onChange={(value) => update('createLogin', value)} />
-            <SelectField label="Login status" value={form.loginStatus} placeholder="Enter login status" options={withCurrent(loginStatuses, form.loginStatus)} onChange={(value) => update('loginStatus', value)} />
+            <SelectField label="Primary branch" required value={form.branchId} error={errors.branchId} placeholder="Select primary branch" options={branchOptions} onChange={(value) => update('branchId', value)} />
+            <Field label="Shop assignment" value={form.shopAssignment} error={errors.shopAssignment} placeholder="Enter shop assignment" onChange={(value) => update('shopAssignment', value)} />
+            <Field label="Warehouse access" value={form.warehouseAccess} error={errors.warehouseAccess} placeholder="Enter warehouse access" onChange={(value) => update('warehouseAccess', value)} />
+            <SelectField label="ERP role" value={form.erpRole} error={errors.erpRole} options={withOption(erpRoles, form.erpRole, employee.erpRoleLabel)} onChange={(value) => update('erpRole', value)} />
+            <SelectField label="Create login" value={form.createLogin} error={errors.createLogin} placeholder="Select create login" options={withOption(createLoginOptions, form.createLogin)} onChange={(value) => update('createLogin', value)} />
             <p className="text-[13px] leading-5 text-slate-400 md:col-span-2">
               An employee record can be saved without ERP login. Restrict login creation only when access is required.
             </p>
           </FormCard>
 
-          <FormCard title="Documents and notes">
-            <Field label="Document type" value={form.documentType} placeholder="Employment contract / ID" onChange={(value) => update('documentType', value)} />
-            <Field label="Document reference" value={form.documentReference} placeholder="Enter document reference" onChange={(value) => update('documentReference', value)} />
-            <div className="md:col-span-2">
-              <span className="text-sm text-slate-700">Upload document</span>
-              <input
-                ref={fileRef}
-                type="file"
-                accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png"
-                className="hidden"
-                onChange={(event) => onFile(event.target.files?.[0])}
-              />
-              <p className="mt-1 text-[13px] text-slate-400">
-                {form.fileName ? (
-                  <>
-                    <span className="text-slate-700">{form.fileName}</span>
-                    {` · ${fileKind(form.fileName)} · `}
-                  </>
-                ) : (
-                  'PDF, JPG or PNG · '
-                )}
-                <button type="button" onClick={() => fileRef.current?.click()} className="font-medium text-[#2f6fed]">
-                  Choose a file
-                </button>{' '}
-                to attach supporting evidence.
-              </p>
-              {errors.fileName && <p className="mt-1 text-xs text-rose-500">{errors.fileName}</p>}
-            </div>
+          <FormCard title="Notes">
             <label className="block md:col-span-2">
               <span className="text-sm text-slate-700">Internal notes</span>
               <textarea
@@ -267,6 +180,7 @@ function EditEmployeePage() {
                 onChange={(event) => update('notes', event.target.value)}
                 className="mt-1.5 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 outline-none placeholder:text-slate-400 focus:border-sky-400"
               />
+              {errors.notes && <p className="mt-1 text-xs text-rose-500">{errors.notes}</p>}
             </label>
           </FormCard>
 
@@ -278,8 +192,12 @@ function EditEmployeePage() {
             >
               Cancel
             </button>
-            <button type="submit" className="cursor-pointer rounded-lg bg-[#2f6fed] px-4 py-2 text-sm font-medium text-white">
-              Save changes
+            <button
+              type="submit"
+              disabled={updateEmployee.isPending}
+              className="cursor-pointer rounded-lg bg-[#2f6fed] px-4 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {updateEmployee.isPending ? 'Saving...' : 'Save changes'}
             </button>
           </div>
           <p className="text-xs text-slate-400">
@@ -291,26 +209,34 @@ function EditEmployeePage() {
           <h2 className="text-[18px] font-semibold text-slate-900">{form.name || employee.name}</h2>
           <p className="mt-1 text-[13px] text-slate-400">{form.code || employee.code}</p>
           <div className="mt-3">
-            <span className={`inline-flex rounded-full px-2.5 py-0.5 text-[12px] font-medium ${statusClass[form.status] || 'bg-slate-100 text-slate-500'}`}>
-              {form.status || 'Active'}
+            <span className={`inline-flex rounded-full px-2.5 py-0.5 text-[12px] font-medium ${statusClassName(statusLabel)}`}>
+              {statusLabel}
             </span>
           </div>
-          <p className="mt-4 text-[13px] leading-5 text-slate-500">{employee.summary}</p>
+          <p className="mt-4 text-[13px] leading-5 text-slate-500">{employeeSummary}</p>
           <dl className="mt-5 space-y-3.5">
-            <SideFact label="Created by" value={employee.createdBy || '—'} />
-            <SideFact label="Created on" value={employee.createdOn || '—'} />
-            <SideFact label="Updated" value={employee.updatedOn || '—'} />
-            <SideFact label="Record status" value={form.status || employee.status} />
+            <SideFact label="Created on" value={formatDate(employee.createdAt)} />
+            <SideFact label="Updated" value={formatDate(employee.updatedAt)} />
+            <SideFact label="Record status" value={statusLabel} />
+            <SideFact label="Login status" value={employee.loginStatusLabel || '—'} />
           </dl>
           <div className="mt-5 rounded-xl bg-[#eef4ff] px-4 py-3.5">
             <p className="text-[13px] font-semibold text-[#2f6fed]">Policy to follow</p>
             <p className="mt-1 text-[13px] leading-5 text-slate-600">
-              Identity details in this screen. Existing documents remain until replacements are saved.
+              Identity details in this screen stay with the employee record.
             </p>
           </div>
         </aside>
       </div>
     </form>
+  )
+}
+
+function Message({ children, className = '' }) {
+  return (
+    <section className={`rounded-2xl border border-slate-200/80 bg-white px-5 py-8 text-center shadow-sm ${className}`}>
+      <h1 className="text-sm font-semibold">{children}</h1>
+    </section>
   )
 }
 
@@ -359,8 +285,8 @@ function SelectField({ label, required = false, value, error, placeholder, optio
         >
           {placeholder && <option value="">{placeholder}</option>}
           {options.map((option) => (
-            <option key={option} value={option}>
-              {option}
+            <option key={option.value} value={option.value}>
+              {option.label}
             </option>
           ))}
         </select>

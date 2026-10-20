@@ -1,13 +1,15 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Download, Plus, Search } from 'lucide-react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { toast } from 'react-toastify'
 import GlobalTable from '../../../components/GlobalTable.jsx'
-import { employeeAccess, employeeSummary, mergeEmployeeRegister, useAddedEmployees, useEmployeeOverrides } from './employeeRecords.js'
+import { useBranches } from '../../../queries/branches/branches.queries.js'
+import { useEmployee, useEmployees, useUpdateEmployeeStatus } from '../../../queries/employees/employees.queries.js'
+import { display, employeeAccess, employeeSummary, employmentStatuses, mapEmployee, statusClassName } from './employeeRecords.js'
 
-const pageSize = 5
+const limit = 20
 
-const tabs = ['Branches',  'Shops', 'Warehouses','Employees', 'Owners', 'Partnerships']
+const tabs = ['Branches', 'Shops', 'Warehouses', 'Employees', 'Owners', 'Partnerships']
 
 const tabRoutes = {
   Shops: '/organization/shop',
@@ -16,173 +18,16 @@ const tabRoutes = {
   Owners: '/organization/owners',
 }
 
-export const employees = [
-  {
-    id: 'EMP-001',
-    code: 'EMP-001',
-    name: 'Omar Khalid',
-    email: 'omar@example.com',
-    phone: '',
-    department: 'Operations',
-    jobTitle: 'Branch Manager',
-    employmentType: 'Full-time',
-    joiningDate: 'Jan 01, 2026',
-    reportsTo: 'Amina Rahman',
-    status: 'Active',
-    branch: 'Central Branch',
-    shop: 'Central Shop',
-    warehouse: 'Main Warehouse',
-    erpRole: 'Branch Manager',
-    createLogin: 'Enabled',
-    loginStatus: 'Enabled pending',
-    documentType: 'Employment contract / ID',
-    documentReference: 'DOC-EMP-001',
-    fileName: 'agreement-or-record.pdf',
-    notes: '',
-    createdBy: 'Amina Rahman',
-    createdOn: 'Jan 01, 2026',
-    updatedOn: 'Sep 20, 2026',
-    summary: employeeSummary,
-    access: employeeAccess,
-    assignments: [
-      { id: 'EMP-001-branch', location: 'Central Branch', type: 'Branch', scope: 'Primary', accessRole: 'Branch Manager', status: 'Active' },
-      { id: 'EMP-001-shop', location: 'Central Shop', type: 'Shop', scope: 'Sales', accessRole: 'Sales + reports', status: 'Active' },
-      { id: 'EMP-001-warehouse', location: 'Main Warehouse', type: 'Warehouse', scope: 'Stock', accessRole: 'Read only', status: 'Active' },
-    ],
-  },
-  {
-    id: 'EMP-002',
-    code: 'EMP-002',
-    name: 'Nadia Sattar',
-    email: 'nadia@example.com',
-    phone: '',
-    department: 'Management',
-    jobTitle: 'Area Manager',
-    employmentType: 'Full-time',
-    joiningDate: 'Feb 12, 2026',
-    reportsTo: 'Amina Rahman',
-    status: 'Active',
-    branch: 'North Branch',
-    shop: 'North Shop',
-    warehouse: '',
-    erpRole: 'Shop Manager',
-    createLogin: 'Enabled',
-    loginStatus: 'Enabled',
-    documentType: 'Employment contract / ID',
-    documentReference: 'DOC-EMP-002',
-    fileName: '',
-    notes: '',
-    createdBy: 'Amina Rahman',
-    createdOn: 'Feb 12, 2026',
-    updatedOn: 'Sep 18, 2026',
-    summary: employeeSummary,
-    access: employeeAccess,
-    assignments: [
-      { id: 'EMP-002-branch', location: 'North Branch', type: 'Branch', scope: 'Primary', accessRole: 'Area Manager', status: 'Active' },
-    ],
-  },
-  {
-    id: 'EMP-003',
-    code: 'EMP-003',
-    name: 'Bilal Ahmed',
-    email: 'bilal@example.com',
-    phone: '',
-    department: 'Warehouse',
-    jobTitle: 'Store Keeper',
-    employmentType: 'Full-time',
-    joiningDate: 'Mar 04, 2026',
-    reportsTo: 'Omar Khalid',
-    status: 'Active',
-    branch: 'Central Branch',
-    shop: '',
-    warehouse: 'Main Warehouse',
-    erpRole: 'Store Keeper',
-    createLogin: 'Disabled',
-    loginStatus: 'Disabled',
-    documentType: 'Employment contract / ID',
-    documentReference: 'DOC-EMP-003',
-    fileName: '',
-    notes: '',
-    createdBy: 'Amina Rahman',
-    createdOn: 'Mar 04, 2026',
-    updatedOn: 'Aug 30, 2026',
-    summary: employeeSummary,
-    access: employeeAccess,
-    assignments: [
-      { id: 'EMP-003-warehouse', location: 'Main Warehouse', type: 'Warehouse', scope: 'Stock', accessRole: 'Store Keeper', status: 'Active' },
-    ],
-  },
-  {
-    id: 'EMP-004',
-    code: 'EMP-004',
-    name: 'Sara Khan',
-    email: 'sara@example.com',
-    phone: '',
-    department: 'Sales',
-    jobTitle: 'Sales Officer',
-    employmentType: 'Full-time',
-    joiningDate: 'Apr 16, 2026',
-    reportsTo: 'Omar Khalid',
-    status: 'Active',
-    branch: 'Central Branch',
-    shop: 'Central Shop',
-    warehouse: '',
-    erpRole: 'Sales Officer',
-    createLogin: 'Enabled',
-    loginStatus: 'Enabled pending',
-    documentType: 'Employment contract / ID',
-    documentReference: 'DOC-EMP-004',
-    fileName: '',
-    notes: '',
-    createdBy: 'Amina Rahman',
-    createdOn: 'Apr 16, 2026',
-    updatedOn: 'Sep 02, 2026',
-    summary: employeeSummary,
-    access: employeeAccess,
-    assignments: [
-      { id: 'EMP-004-shop', location: 'Central Shop', type: 'Shop', scope: 'Sales', accessRole: 'Sales + reports', status: 'Active' },
-    ],
-  },
-  {
-    id: 'EMP-005',
-    code: 'EMP-005',
-    name: 'Lina Abbas',
-    email: 'lina@example.com',
-    phone: '',
-    department: 'Operations',
-    jobTitle: 'Operations Officer',
-    employmentType: 'Full-time',
-    joiningDate: 'May 21, 2026',
-    reportsTo: 'Omar Khalid',
-    status: 'On leave',
-    branch: 'Airport Branch',
-    shop: '',
-    warehouse: '',
-    erpRole: '',
-    createLogin: 'Enabled',
-    loginStatus: 'Enabled pending',
-    documentType: 'Employment contract / ID',
-    documentReference: 'DOC-EMP-005',
-    fileName: '',
-    notes: '',
-    createdBy: 'Amina Rahman',
-    createdOn: 'May 21, 2026',
-    updatedOn: 'Sep 11, 2026',
-    summary: employeeSummary,
-    access: employeeAccess,
-    assignments: [],
-  },
+const statusOptions = [
+  { label: 'All statuses', value: '' },
+  { label: 'Active', value: 'active' },
+  { label: 'On leave', value: 'on_leave' },
+  { label: 'Inactive', value: 'inactive' },
 ]
-
-const statusClass = {
-  Active: 'bg-[#e7f8ee] text-[#1f9d57]',
-  'On leave': 'bg-[#eef1f4] text-[#6b7280]',
-  Inactive: 'bg-[#eef1f4] text-[#8b95a5]',
-}
 
 function StatusPill({ status }) {
   return (
-    <span className={`inline-flex rounded-full px-2.5 py-0.5 text-[12px] font-medium ${statusClass[status] || 'bg-slate-100 text-slate-500'}`}>
+    <span className={`inline-flex rounded-full px-2.5 py-0.5 text-[12px] font-medium ${statusClassName(status)}`}>
       {status}
     </span>
   )
@@ -193,7 +38,7 @@ function employeeColumns(onView, onEdit) {
     {
       key: 'code',
       label: 'CODE',
-      renderCell: (item) => <span className="font-mono text-[12px] text-slate-400">{item.code}</span>,
+      renderCell: (item) => <span className="font-mono text-[12px] text-slate-400">{display(item.code)}</span>,
     },
     {
       key: 'name',
@@ -201,19 +46,19 @@ function employeeColumns(onView, onEdit) {
       isRowHeader: true,
       renderCell: (item) => (
         <button type="button" onClick={() => onView(item)} className="text-[13px] font-medium text-slate-800">
-          {item.name}
+          {display(item.name)}
         </button>
       ),
     },
     {
       key: 'department',
       label: 'DEPARTMENT',
-      renderCell: (item) => <span className="text-[13px] text-slate-600">{item.department}</span>,
+      renderCell: (item) => <span className="text-[13px] text-slate-600">{display(item.department)}</span>,
     },
     {
       key: 'branch',
       label: 'PRIMARY BRANCH',
-      renderCell: (item) => <span className="text-[13px] text-slate-600">{item.branch}</span>,
+      renderCell: (item) => <span className="text-[13px] text-slate-600">{display(item.branch)}</span>,
     },
     {
       key: 'status',
@@ -227,10 +72,10 @@ function employeeColumns(onView, onEdit) {
       cellClassName: 'text-right',
       renderCell: (item) => (
         <div className="flex justify-end gap-3">
-          <button type="button" onClick={() => onView(item)} className="text-[13px] font-medium text-[#2f6fed]">
+          <button type="button" onClick={() => onView(item)} className="text-[13px] font-medium text-[#2f6fed] cursor-pointer">
             View
           </button>
-          <button type="button" onClick={() => onEdit(item)} className="text-[13px] font-medium text-[#2f6fed]">
+          <button type="button" onClick={() => onEdit(item)} className="text-[13px] font-medium text-[#2f6fed] cursor-pointer">
             Edit
           </button>
         </div>
@@ -244,7 +89,7 @@ const assignmentColumns = [
     key: 'location',
     label: 'LOCATION',
     isRowHeader: true,
-    renderCell: (item) => <span className="text-[13px] font-medium text-slate-800">{item.location}</span>,
+    renderCell: (item) => <span className="text-[13px] font-medium text-slate-800">{display(item.location)}</span>,
   },
   {
     key: 'type',
@@ -271,34 +116,58 @@ const assignmentColumns = [
 function EmployeePage() {
   const navigate = useNavigate()
   const location = useLocation()
-  const addedEmployees = useAddedEmployees()
-  const overrides = useEmployeeOverrides()
-  const register = mergeEmployeeRegister(addedEmployees, employees, overrides)
   const [tab, setTab] = useState('Employees')
   const [query, setQuery] = useState('')
+  const [debouncedSearch, setDebouncedSearch] = useState('')
   const [branch, setBranch] = useState('')
   const [status, setStatus] = useState('')
   const [page, setPage] = useState(1)
-  const [selectedId, setSelectedId] = useState(location.state?.selectedId || employees[0].id)
-  const [assignmentId, setAssignmentId] = useState(employees[0].assignments[0].id)
+  const [selectedId, setSelectedId] = useState(location.state?.selectedId || null)
+  const [assignmentId, setAssignmentId] = useState(null)
 
-  const branches = [...new Set(register.map((employee) => employee.branch).filter(Boolean))]
-  const needle = query.trim().toLowerCase()
-  const filtered = register.filter((employee) => {
-    const matchesQuery =
-      !needle || employee.name.toLowerCase().includes(needle) || employee.code.toLowerCase().includes(needle)
-    const matchesBranch = !branch || employee.branch === branch
-    const matchesStatus = !status || employee.status === status
-    return matchesQuery && matchesBranch && matchesStatus
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(query.trim()), 300)
+    return () => clearTimeout(timer)
+  }, [query])
+
+  useEffect(() => {
+    setPage(1)
+  }, [debouncedSearch, status, branch])
+
+  const branchFilterActive = Boolean(branch)
+  const employeesQuery = useEmployees({
+    page: branchFilterActive ? 1 : page,
+    limit: branchFilterActive ? 100 : limit,
+    search: debouncedSearch,
+    status,
   })
-  const start = (page - 1) * pageSize
-  const pageRows = filtered.slice(start, start + pageSize)
+  const updateStatus = useUpdateEmployeeStatus()
+  const branchesQuery = useBranches({ page: 1, limit: 100, search: '', status: '' })
+  const mapped = (employeesQuery.data?.data || []).map(mapEmployee)
+  const filtered = branch ? mapped.filter((employee) => employee.branchId === branch) : mapped
+  const total = branch ? filtered.length : (employeesQuery.data?.meta?.total ?? mapped.length)
+  const pageRows = branch ? filtered.slice((page - 1) * limit, page * limit) : mapped
+  const summary = employeesQuery.data?.meta?.summary || employeesQuery.data?.data?.[0]?.summary
   const selected = pageRows.find((employee) => employee.id === selectedId) || pageRows[0] || null
-  const assignments = selected?.assignments || []
+
+  useEffect(() => {
+    if (selectedId && pageRows.some((employee) => employee.id === selectedId)) return
+    if (pageRows[0]) setSelectedId(pageRows[0].id)
+  }, [pageRows, selectedId])
+
+  const detailQuery = useEmployee(selected?.id)
+  const detail = detailQuery.data?.data ? mapEmployee(detailQuery.data.data) : null
+  const profile = detail || selected
+  const assignments = detail?.assignments || []
   const selectedAssignment = assignments.find((item) => item.id === assignmentId) || assignments[0] || null
-  const departmentCount = new Set(register.map((employee) => employee.department).filter(Boolean)).size
-  const assignmentCount = register.reduce((total, employee) => total + (employee.assignments?.length || 0), 0)
-  const pendingCount = register.filter((employee) => String(employee.loginStatus || '').toLowerCase().includes('pending')).length
+  const branchOptions = (branchesQuery.data?.data || []).map((item) => ({
+    id: item._id,
+    name: item.name,
+  }))
+  const employeeTotal = summary?.employees?.total ?? employeesQuery.data?.meta?.total ?? 0
+  const departmentCount = summary?.departments ?? '—'
+  const activeCount = summary?.employees?.active ?? '—'
+  const pendingCount = summary?.pendingAccess ?? '—'
 
   function openTab(item) {
     const route = tabRoutes[item]
@@ -320,6 +189,22 @@ function EmployeePage() {
 
   function editEmployee(employee) {
     navigate(`/organization/employees/${employee.id}/edit`)
+  }
+
+  function changeStatus(nextStatus) {
+    if (!profile?.id || profile.statusValue === nextStatus || updateStatus.isPending) return
+    updateStatus.mutate(
+      { id: profile.id, status: nextStatus },
+      {
+        onSuccess: (data) => {
+          const label = employmentStatuses.find((option) => option.value === nextStatus)?.label || nextStatus
+          toast.success(data?.message || `${profile.name || 'Employee'} is now ${label}.`)
+        },
+        onError: (error) => {
+          toast.error(error.response?.data?.message || 'Could not update the employment status.')
+        },
+      },
+    )
   }
 
   function clearFilters() {
@@ -351,7 +236,7 @@ function EmployeePage() {
           <button
             type="button"
             onClick={() => toast.success('Employee register exported.')}
-            className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-sm font-medium text-slate-700"
+            className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-sm font-medium text-slate-700 cursor-pointer"
           >
             <Download size={15} />
             Export
@@ -359,7 +244,7 @@ function EmployeePage() {
           <button
             type="button"
             onClick={() => navigate('/organization/employees/new')}
-            className="inline-flex items-center gap-2 rounded-lg bg-[#2f6fed] px-3.5 py-2 text-sm font-medium text-white"
+            className="inline-flex items-center gap-2 rounded-lg bg-[#2f6fed] px-3.5 py-2 text-sm font-medium text-white cursor-pointer"
           >
             <Plus size={15} />
             Add Employee
@@ -385,9 +270,9 @@ function EmployeePage() {
       </div>
 
       <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <Stat label="Employees" value={register.length} />
+        <Stat label="Employees" value={employeeTotal} />
         <Stat label="Departments" value={departmentCount} />
-        <Stat label="Assignments" value={assignmentCount} />
+        <Stat label="Active" value={activeCount} />
         <Stat label="Pending access" value={pendingCount} />
       </section>
 
@@ -398,10 +283,7 @@ function EmployeePage() {
               <Search size={15} className="absolute top-1/2 left-3 -translate-y-1/2 text-slate-400" />
               <input
                 value={query}
-                onChange={(event) => {
-                  setQuery(event.target.value)
-                  setPage(1)
-                }}
+                onChange={(event) => setQuery(event.target.value)}
                 placeholder="Search name or code"
                 className="w-full rounded-lg border border-slate-200 bg-white py-2 pr-3 pl-9 text-sm outline-none focus:border-sky-400"
               />
@@ -409,30 +291,25 @@ function EmployeePage() {
             <select
               aria-label="Status"
               value={status}
-              onChange={(event) => {
-                setStatus(event.target.value)
-                setPage(1)
-              }}
+              onChange={(event) => setStatus(event.target.value)}
               className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:border-sky-400"
             >
-              <option value="">All statuses</option>
-              <option value="Active">Active</option>
-              <option value="On leave">On leave</option>
-              <option value="Inactive">Inactive</option>
+              {statusOptions.map((option) => (
+                <option key={option.label} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
             </select>
             <select
               aria-label="Branch"
               value={branch}
-              onChange={(event) => {
-                setBranch(event.target.value)
-                setPage(1)
-              }}
+              onChange={(event) => setBranch(event.target.value)}
               className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:border-sky-400"
             >
               <option value="">All branches</option>
-              {branches.map((item) => (
-                <option key={item} value={item}>
-                  {item}
+              {branchOptions.map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.name}
                 </option>
               ))}
             </select>
@@ -452,15 +329,21 @@ function EmployeePage() {
                   columns={employeeColumns(viewEmployee, editEmployee)}
                   data={pageRows}
                   pagination
-                  rowsPerPage={pageSize}
+                  rowsPerPage={limit}
                   page={page}
-                  totalCount={filtered.length}
+                  totalCount={total}
                   onPageChange={setPage}
                   className="h-auto! max-h-none!"
                   contentClassName="min-w-full"
-                  emptyContent="No employees match these filters."
+                  emptyContent={
+                    employeesQuery.isError
+                      ? employeesQuery.error.response?.data?.message || 'Could not load employees.'
+                      : employeesQuery.isLoading
+                        ? 'Loading employees...'
+                        : 'No employees match these filters.'
+                  }
                   summary={
-                    filtered.length
+                    total
                       ? `Showing ${pageRows.length} ${pageRows.length === 1 ? 'record' : 'records'}${selected ? ' · 1 selected' : ''}`
                       : undefined
                   }
@@ -483,10 +366,18 @@ function EmployeePage() {
                   columns={assignmentColumns}
                   data={assignments}
                   pagination
-                  rowsPerPage={pageSize}
+                  rowsPerPage={limit}
                   className="h-auto! max-h-none!"
                   contentClassName="min-w-full"
-                  emptyContent={selected ? 'This employee has no location assignments.' : 'Select an employee to see location assignments.'}
+                  emptyContent={
+                    !selected
+                      ? 'Select an employee to see location assignments.'
+                      : detailQuery.isLoading
+                        ? 'Loading assignments...'
+                        : detailQuery.isError
+                          ? detailQuery.error.response?.data?.message || 'Could not load assignments.'
+                          : 'This employee has no location assignments.'
+                  }
                   summary={
                     assignments.length
                       ? `Showing ${assignments.length} ${assignments.length === 1 ? 'record' : 'records'}${selectedAssignment ? ' · 1 selected' : ''}`
@@ -498,7 +389,13 @@ function EmployeePage() {
               </section>
             </div>
 
-            {selected ? <EmployeeDetail employee={selected} /> : null}
+            {profile ? (
+              <EmployeeDetail
+                employee={profile}
+                statusPending={updateStatus.isPending}
+                onStatusChange={changeStatus}
+              />
+            ) : null}
           </div>
         </>
       ) : (
@@ -517,26 +414,57 @@ function Stat({ label, value }) {
   )
 }
 
-function EmployeeDetail({ employee }) {
+function EmployeeDetail({ employee, statusPending, onStatusChange }) {
   return (
     <aside className="rounded-2xl border border-slate-200/80 bg-white px-5 py-5 shadow-sm xl:sticky xl:top-4">
-      <h2 className="text-[18px] font-semibold text-slate-900">{employee.name}</h2>
-      <p className="mt-1 text-[13px] text-slate-400">{employee.code}</p>
+      <h2 className="text-[18px] font-semibold text-slate-900">{display(employee.name)}</h2>
+      <p className="mt-1 text-[13px] text-slate-400">{display(employee.code)}</p>
       <div className="mt-3">
         <StatusPill status={employee.status} />
       </div>
-      <p className="mt-4 text-[13px] leading-5 text-slate-500">{employee.summary}</p>
+      <StatusSwitcher value={employee.statusValue} pending={statusPending} onChange={onStatusChange} />
+      <p className="mt-4 text-[13px] leading-5 text-slate-500">
+        {employee.jobTitle ? `${employee.jobTitle}${employee.department ? ` in ${employee.department}` : ''}.` : employeeAccess}
+      </p>
       <dl className="mt-5 space-y-3.5">
-        <Fact label="Created by" value={employee.createdBy} />
+        <Fact label="Reports to" value={display(employee.reportsTo)} />
         <Fact label="Created on" value={employee.createdOn} />
         <Fact label="Updated" value={employee.updatedOn} />
-        <Fact label="Record status" value={employee.status} />
       </dl>
       <div className="mt-5 rounded-xl bg-[#eef4ff] px-4 py-3.5">
         <p className="text-[13px] font-semibold text-[#2f6fed]">Access and relationships</p>
-        <p className="mt-1 text-[13px] leading-5 text-slate-600">{employee.access}</p>
+        <p className="mt-1 text-[13px] leading-5 text-slate-600">
+          {employee.loginStatus ? `Login: ${employee.loginStatus}. ` : ''}
+          {employeeAccess}
+        </p>
       </div>
     </aside>
+  )
+}
+
+function StatusSwitcher({ value, pending, onChange }) {
+  return (
+    <div className="mt-4">
+      <p className="text-[12px] font-medium text-slate-400">Employment status</p>
+      <div className="mt-2 grid grid-cols-3 gap-1 rounded-xl bg-slate-100 p-1">
+        {employmentStatuses.map((option) => {
+          const selected = value === option.value
+          return (
+            <button
+              key={option.value}
+              type="button"
+              disabled={pending}
+              onClick={() => onChange(option.value)}
+              className={`cursor-pointer rounded-lg px-1 py-1.5 text-[12px] font-medium disabled:cursor-not-allowed disabled:opacity-60 ${
+                selected ? `${statusClassName(option.label)} shadow-sm` : 'text-slate-500 hover:bg-white'
+              }`}
+            >
+              {option.label}
+            </button>
+          )
+        })}
+      </div>
+    </div>
   )
 }
 
