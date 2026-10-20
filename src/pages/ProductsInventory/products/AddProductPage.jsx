@@ -46,7 +46,7 @@ function AddProductPage() {
   }
 
   return (
-    <form className="mx-auto max-w-5xl space-y-4" onSubmit={handleSubmit}>
+    <form className="mx-auto space-y-4" onSubmit={handleSubmit}>
       <div>
         <nav aria-label="Breadcrumb" className="flex flex-wrap items-center gap-2 text-sm text-slate-400">
           <Link to="/dashboard" className="font-medium text-slate-700 hover:text-slate-900">
@@ -54,10 +54,10 @@ function AddProductPage() {
           </Link>
           <span>/</span>
           <Link to="/products/products" className="font-medium text-slate-700 hover:text-slate-900">
-            Products
+            Products & Inventory
           </Link>
           <span>/</span>
-          <span className="font-medium text-slate-700">Add Product</span>
+          <span className="font-medium text-slate-400">Add Product</span>
         </nav>
         <h1 className="mt-2 text-[28px] leading-none font-semibold tracking-tight text-slate-900">Add Product</h1>
         <p className="mt-2 text-sm text-slate-500">

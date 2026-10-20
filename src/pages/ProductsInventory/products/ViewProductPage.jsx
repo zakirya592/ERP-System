@@ -20,15 +20,17 @@ function ViewProductPage() {
         <div>
           <nav
             aria-label="Breadcrumb"
-            className="flex flex-wrap items-center gap-2 text-[11px] font-semibold tracking-[0.14em] text-slate-400 uppercase"
+            className="flex flex-wrap items-center gap-2 text-sm text-slate-400"
           >
-            <span>Products & Inventory (PKR)</span>
+             <Link to="/dashboard" className="font-medium text-slate-700 hover:text-slate-900">
+            Dashboard
+          </Link>
             <span>/</span>
-            <Link to="/products/products" className="hover:text-slate-700">
-              Products
+            <Link to="/products/products" className="font-medium text-slate-700 hover:text-slate-900">
+              Products & Inventory
             </Link>
             <span>/</span>
-            <span className="text-slate-700">Detail</span>
+            <span className="font-medium text-slate-400">Detail</span>
           </nav>
           <div className="mt-2 flex flex-wrap items-center gap-2">
             <h1 className="text-[32px] leading-none font-semibold tracking-tight text-slate-900">

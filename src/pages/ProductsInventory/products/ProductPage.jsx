@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react'
 import { Boxes, ChevronDown, CircleDollarSign, Download, Eye, Pencil, Plus, Search, Trash2, TriangleAlert, Upload } from 'lucide-react'
-import { NavLink, useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { toast } from 'react-toastify'
 import GlobalTable from '../../../components/GlobalTable.jsx'
-import { sidebarMenu } from '../../../components/sidebarMenu.js'
+import InventoryTabs from '../InventoryTabs.jsx'
 import { useProductCategories } from '../../../queries/productCategories/productCategories.queries.js'
 import { useProducts } from '../../../queries/products/products.queries.js'
 import { money, refName, statusLabel, unitLabel } from './productRecords.js'
@@ -20,8 +20,6 @@ const statusClass = {
   active: 'bg-emerald-50 text-emerald-600',
   inactive: 'bg-slate-100 text-slate-500',
 }
-
-const tabs = sidebarMenu.find((item) => item.key === 'products')?.children || []
 
 function ProductPage() {
   const navigate = useNavigate()
@@ -160,9 +158,13 @@ function ProductPage() {
     <div className="space-y-4">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div>
-          <p className="text-[11px] font-semibold tracking-[0.16em] text-slate-400 uppercase">
-            Products & Inventory (PKR)
-          </p>
+          <nav aria-label="Breadcrumb" className="flex flex-wrap items-center gap-2 text-sm text-slate-400">
+            <Link to="/dashboard" className="font-medium text-slate-700 hover:text-slate-900">
+              Dashboard
+            </Link>
+            <span>/</span>
+            <span className="font-medium text-slate-700">Products & Inventory</span>
+          </nav>
           <h1 className="mt-1 text-[32px] leading-none font-semibold tracking-tight text-slate-900">Products</h1>
           <p className="mt-2 max-w-xl text-sm text-slate-500">
             Manage product identity, pricing, and stock availability across operating locations.
@@ -196,22 +198,7 @@ function ProductPage() {
         </div>
       </div>
 
-      <div className="inline-flex max-w-full flex-wrap gap-1 rounded-xl bg-[#e6edf5] p-1">
-        {tabs.map((tab) => (
-          <NavLink
-            key={tab.to}
-            to={tab.to}
-            end
-            className={({ isActive }) =>
-              `rounded-lg px-3 py-1.5 text-sm ${
-                isActive ? 'bg-white font-medium text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-800'
-              }`
-            }
-          >
-            {tab.label}
-          </NavLink>
-        ))}
-      </div>
+      <InventoryTabs />
 
       <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
         <StatCard

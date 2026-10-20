@@ -1,10 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Button } from '@heroui/react'
 import { ChevronRight, CircleCheck, ClipboardList, Download, GitBranch, Info, Plus, Search, Tag, Trash2 } from 'lucide-react'
-import { NavLink } from 'react-router-dom'
 import { toast } from 'react-toastify'
-import { sidebarMenu } from '../../../components/sidebarMenu.js'
 import GlobalTable from '../../../components/GlobalTable.jsx'
+import InventoryTabs from '../InventoryTabs.jsx'
 
 function category(code, name, parent, description, status = 'Active', products = [], group = parent || '—') {
   return {
@@ -111,8 +110,6 @@ function categoryColumns(selectedId) {
     },
   ]
 }
-const tabs = sidebarMenu.find((item) => item.key === 'products')?.children || []
-
 function CategoryPage() {
   const [query, setQuery] = useState('')
   const [status, setStatus] = useState('all')
@@ -172,24 +169,7 @@ function CategoryPage() {
         </div>
       </div>
 
-      <div className="inline-flex max-w-full flex-wrap gap-1 rounded-xl bg-[#e6edf5] p-1">
-        {tabs.map((tab) => (
-          <NavLink
-            key={tab.to}
-            to={tab.to}
-            end
-            className={({ isActive }) =>
-              `rounded-lg px-3 py-1.5 text-sm ${
-                isActive
-                  ? 'bg-white font-medium text-slate-900 shadow-sm'
-                  : 'text-slate-500 hover:text-slate-800'
-              }`
-            }
-          >
-            {tab.label}
-          </NavLink>
-        ))}
-      </div>
+      <InventoryTabs />
 
       <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
         <Metric label="Total categories" value="26" hint="Complete register" icon={ClipboardList} />
