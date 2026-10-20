@@ -7,6 +7,8 @@ import CustomerPage from './pages/Customer/CustomerPage.jsx'
 import AddProductPage from './pages/ProductsInventory/products/AddProductPage.jsx'
 import CategoryPage from './pages/ProductsInventory/categories/CategoryPage.jsx'
 import ProductPage from './pages/ProductsInventory/products/ProductPage.jsx'
+import UpdateProductPage from './pages/ProductsInventory/products/UpdateProductPage.jsx'
+import ViewProductPage from './pages/ProductsInventory/products/ViewProductPage.jsx'
 import NewSalePage from './pages/Sales/NewSalePage.jsx'
 import SalesPage from './pages/Sales/SalesPage.jsx'
 import SalesReturnPage from './pages/Sales/SalesReturnPage.jsx'
@@ -90,6 +92,8 @@ function App() {
         <Route path="/purchases/suppliers/new" element={<AddSupplierPage />} />
         <Route path="/products/products" element={<ProductPage />} />
         <Route path="/products/products/new" element={<AddProductPage />} />
+        <Route path="/products/products/:id/edit" element={<UpdateProductPage />} />
+        <Route path="/products/products/:id" element={<ViewProductPage />} />
         <Route path="/products/categories" element={<CategoryPage />} />
         <Route path="/users/users" element={<UsersPage />} />
         <Route path="/users/users/new" element={<AddUserPage />} />

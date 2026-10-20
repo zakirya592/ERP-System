@@ -41,4 +41,11 @@ export const queryKeys = {
     list: (params) => ['packingUnits', 'list', params],
     detail: (id) => ['packingUnits', 'detail', id],
   },
+  productCategories: {
+    list: (params) => ['productCategories', 'list', params],
+  },
+  products: {
+    list: (params) => ['products', 'list', params],
+    detail: (id) => ['products', 'detail', id],
+  },
 }

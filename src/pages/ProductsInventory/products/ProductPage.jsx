@@ -1,127 +1,160 @@
-import { useMemo, useState } from 'react'
-import { Button } from '@heroui/react'
-import { useNavigate } from 'react-router-dom'
-import { Boxes, CircleDollarSign, Download, Plus, Search, SlidersHorizontal, Trash2, TriangleAlert, Upload } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { Boxes, ChevronDown, CircleDollarSign, Download, Eye, Pencil, Plus, Search, Trash2, TriangleAlert, Upload } from 'lucide-react'
+import { NavLink, useNavigate } from 'react-router-dom'
 import { toast } from 'react-toastify'
 import GlobalTable from '../../../components/GlobalTable.jsx'
+import { sidebarMenu } from '../../../components/sidebarMenu.js'
+import { useProductCategories } from '../../../queries/productCategories/productCategories.queries.js'
+import { useProducts } from '../../../queries/products/products.queries.js'
+import { money, refName, statusLabel, unitLabel } from './productRecords.js'
 
-const catalogTotal = 3846
-const rowsPerPage = 10
+const limit = 20
 
-const sample = [
-  { sku: 'BEV-1042', name: 'Arabica Coffee 1 kg', category: 'Beverages', unit: 'bag', cost: 12.4, sale: 18.9, available: 18, reserved: 2, state: 'Critical' },
-  { sku: 'DRY-0081', name: 'Basmati Rice 25 kg', category: 'Dry Goods', unit: 'bag', cost: 22.1, sale: 31.5, available: 6, reserved: 0, state: 'Low' },
-  { sku: 'CLN-2201', name: 'Floor Cleaner 5 L', category: 'Cleaning', unit: 'can', cost: 4.8, sale: 8.2, available: 15, reserved: 2, state: 'Critical' },
-  { sku: 'PKG-3118', name: 'Paper Carry Bag L', category: 'Packaging', unit: 'pcs', cost: 0.18, sale: 0.45, available: 120, reserved: 0, state: 'Low' },
-  { sku: 'DAI-0448', name: 'Whole Milk 1 L', category: 'Dairy', unit: 'ctn', cost: 0.95, sale: 1.4, available: 8, reserved: 2, state: 'Low' },
-  { sku: 'GRN-1103', name: 'Sea Salt Coarse', category: 'Groceries', unit: 'box', cost: 6.2, sale: 9.5, available: 24, reserved: 0, state: 'Healthy' },
-  { sku: 'BEV-1180', name: 'Sparkling Water 330 ml', category: 'Beverages', unit: 'case', cost: 8.4, sale: 14, available: 36, reserved: 6, state: 'Healthy' },
-  { sku: 'HYG-0032', name: 'Hand Wash 500 ml', category: 'Hygiene', unit: 'pcs', cost: 1.1, sale: 2.4, available: 0, reserved: 0, state: 'Out of stock' },
-  { sku: 'FZN-0042', name: 'Frozen Peas 1 kg', category: 'Frozen', unit: 'pcs', cost: 1.85, sale: 3.2, available: 14, reserved: 1, state: 'Healthy' },
+const statusOptions = [
+  { label: 'All statuses', value: '' },
+  { label: 'Active', value: 'active' },
+  { label: 'Inactive', value: 'inactive' },
 ]
 
-const products = [
-  ...sample,
-  ...Array.from({ length: 20 }, (_, index) => {
-    const base = sample[index % sample.length]
-    const sku = `${base.sku.slice(0, 4)}${1100 + index}`
-    return { ...base, sku, id: sku }
-  }),
-].map((product) => ({ ...product, id: product.sku }))
-
-const categories = ['All categories', ...new Set(products.map((product) => product.category))]
-const statuses = ['All statuses', 'Critical', 'Low', 'Healthy', 'Out of stock']
-const warehouses = ['Main Warehouse', 'North Warehouse', 'Central Warehouse']
-
-const stateClass = {
-  Critical: 'text-rose-500',
-  Low: 'text-amber-500',
-  Healthy: 'text-emerald-500',
-  'Out of stock': 'text-rose-500',
+const statusClass = {
+  active: 'bg-emerald-50 text-emerald-600',
+  inactive: 'bg-slate-100 text-slate-500',
 }
 
-function money(value) {
-  return value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-}
-
-const columns = [
-  {
-    key: 'sku',
-    label: 'SKU',
-    renderCell: (item) => <span className="font-mono text-[12px] text-slate-400">{item.sku}</span>,
-  },
-  {
-    key: 'name',
-    label: 'Product',
-    isRowHeader: true,
-    renderCell: (item) => <span className="text-[13px] font-medium text-slate-800">{item.name}</span>,
-  },
-  {
-    key: 'category',
-    label: 'Category',
-    renderCell: (item) => <span className="text-[13px] text-slate-500">{item.category}</span>,
-  },
-  {
-    key: 'unit',
-    label: 'Unit',
-    renderCell: (item) => <span className="text-[13px] text-slate-500">{item.unit}</span>,
-  },
-  {
-    key: 'cost',
-    label: 'Cost',
-    className: 'text-right',
-    cellClassName: 'text-right',
-    renderCell: (item) => <span className="text-[13px] text-slate-700">{money(item.cost)}</span>,
-  },
-  {
-    key: 'sale',
-    label: 'Sale',
-    className: 'text-right',
-    cellClassName: 'text-right',
-    renderCell: (item) => <span className="text-[13px] text-slate-700">{money(item.sale)}</span>,
-  },
-  {
-    key: 'available',
-    label: 'Available',
-    className: 'text-right',
-    cellClassName: 'text-right',
-    renderCell: (item) => <span className="text-[13px] text-slate-700">{item.available}</span>,
-  },
-  {
-    key: 'reserved',
-    label: 'Reserved',
-    className: 'text-right',
-    cellClassName: 'text-right',
-    renderCell: (item) => <span className="text-[13px] text-slate-700">{item.reserved}</span>,
-  },
-  {
-    key: 'state',
-    label: 'Reorder state',
-    renderCell: (item) => (
-      <span className={`text-[13px] font-medium ${stateClass[item.state]}`}>{item.state}</span>
-    ),
-  },
-]
+const tabs = sidebarMenu.find((item) => item.key === 'products')?.children || []
 
 function ProductPage() {
   const navigate = useNavigate()
-  const [query, setQuery] = useState('')
-  const [category, setCategory] = useState('All categories')
-  const [status, setStatus] = useState('All statuses')
-  const [warehouse, setWarehouse] = useState('Main Warehouse')
+  const [page, setPage] = useState(1)
+  const [search, setSearch] = useState('')
+  const [debouncedSearch, setDebouncedSearch] = useState('')
+  const [status, setStatus] = useState('')
+  const [categoryId, setCategoryId] = useState('')
 
-  const filtered = useMemo(() => {
-    const needle = query.trim().toLowerCase()
-    return products.filter((product) => {
-      const matchesQuery =
-        !needle ||
-        product.name.toLowerCase().includes(needle) ||
-        product.sku.toLowerCase().includes(needle)
-      const matchesCategory = category === 'All categories' || product.category === category
-      const matchesStatus = status === 'All statuses' || product.state === status
-      return matchesQuery && matchesCategory && matchesStatus
-    })
-  }, [query, category, status])
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(search.trim()), 300)
+    return () => clearTimeout(timer)
+  }, [search])
+
+  useEffect(() => {
+    setPage(1)
+  }, [debouncedSearch, status, categoryId])
+
+  const productsQuery = useProducts({ page, limit, search: debouncedSearch, status, categoryId })
+  const activeQuery = useProducts({ page: 1, limit: 1, search: '', status: 'active', categoryId: '' })
+  const inactiveQuery = useProducts({ page: 1, limit: 1, search: '', status: 'inactive', categoryId: '' })
+  const categoriesQuery = useProductCategories({ page: 1, limit: 100, search: '', status: '' })
+
+  const products = (productsQuery.data?.data || []).map((product) => ({ ...product, id: product._id }))
+  const categories = categoriesQuery.data?.data || []
+  const total = productsQuery.data?.meta?.total ?? 0
+  const activeTotal = activeQuery.data?.meta?.total
+  const inactiveTotal = inactiveQuery.data?.meta?.total
+  const rangeStart = total === 0 ? 0 : (page - 1) * limit + 1
+  const rangeEnd = Math.min(page * limit, total)
+  const summary =
+    total <= limit
+      ? `Showing all ${total} ${total === 1 ? 'product' : 'products'}`
+      : `Showing ${rangeStart} to ${rangeEnd} of ${total} products`
+
+  function clearFilters() {
+    setSearch('')
+    setStatus('')
+    setCategoryId('')
+    setPage(1)
+  }
+
+  const columns = [
+    {
+      key: 'sku',
+      label: 'SKU',
+      renderCell: (item) => <span className="font-mono text-[12px] text-slate-400">{item.sku || '—'}</span>,
+    },
+    {
+      key: 'name',
+      label: 'Product',
+      isRowHeader: true,
+      renderCell: (item) => (
+        <button
+          type="button"
+          onClick={() => navigate(`/products/products/${item._id}`)}
+          className="cursor-pointer text-left text-[13px] font-medium text-slate-800"
+        >
+          {item.name}
+        </button>
+      ),
+    },
+    {
+      key: 'category',
+      label: 'Category',
+      renderCell: (item) => <span className="text-[13px] text-slate-500">{refName(item.categoryId) || '—'}</span>,
+    },
+    {
+      key: 'unit',
+      label: 'Unit',
+      renderCell: (item) => <span className="text-[13px] text-slate-500">{unitLabel(item.quantityUnitId)}</span>,
+    },
+    {
+      key: 'cost',
+      label: 'Cost',
+      className: 'text-right',
+      cellClassName: 'text-right',
+      renderCell: (item) => <span className="text-[13px] text-slate-700">{money(item.costPrice)}</span>,
+    },
+    {
+      key: 'sale',
+      label: 'Sale',
+      className: 'text-right',
+      cellClassName: 'text-right',
+      renderCell: (item) => <span className="text-[13px] text-slate-700">{money(item.salePrice)}</span>,
+    },
+    {
+      key: 'reorder',
+      label: 'Reorder',
+      className: 'text-right',
+      cellClassName: 'text-right',
+      renderCell: (item) => <span className="text-[13px] text-slate-700">{item.reorderLevel ?? '—'}</span>,
+    },
+    {
+      key: 'status',
+      label: 'Status',
+      renderCell: (item) => (
+        <span
+          className={`inline-flex rounded-full px-2.5 py-0.5 text-[12px] font-medium ${
+            statusClass[item.status] || 'bg-slate-100 text-slate-500'
+          }`}
+        >
+          {statusLabel(item.status)}
+        </span>
+      ),
+    },
+    {
+      key: 'actions',
+      label: 'Actions',
+      className: 'text-right',
+      cellClassName: 'text-right',
+      renderCell: (item) => (
+        <div className="flex justify-end gap-1">
+          <button
+            type="button"
+            aria-label={`View ${item.name}`}
+            onClick={() => navigate(`/products/products/${item._id}`)}
+            className="inline-flex cursor-pointer items-center justify-center rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-[#2563eb]"
+          >
+            <Eye size={16} />
+          </button>
+          <button
+            type="button"
+            aria-label={`Update ${item.name}`}
+            onClick={() => navigate(`/products/products/${item._id}/edit`)}
+            className="inline-flex cursor-pointer items-center justify-center rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-[#2563eb]"
+          >
+            <Pencil size={16} />
+          </button>
+        </div>
+      ),
+    },
+  ]
 
   return (
     <div className="space-y-4">
@@ -130,33 +163,60 @@ function ProductPage() {
           <p className="text-[11px] font-semibold tracking-[0.16em] text-slate-400 uppercase">
             Products & Inventory (PKR)
           </p>
-          <h1 className="mt-1 text-[32px] leading-none font-semibold tracking-tight text-slate-900">
-            Products
-          </h1>
+          <h1 className="mt-1 text-[32px] leading-none font-semibold tracking-tight text-slate-900">Products</h1>
           <p className="mt-2 max-w-xl text-sm text-slate-500">
             Manage product identity, pricing, and stock availability across operating locations.
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onPress={() => toast.success('Import opened.')}>
+          <button
+            type="button"
+            onClick={() => toast.success('Import opened.')}
+            className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-sm font-medium text-slate-700"
+          >
             <Upload size={15} />
             Import
-          </Button>
-          <Button variant="outline" size="sm" onPress={() => toast.success('Product catalog exported.')}>
+          </button>
+          <button
+            type="button"
+            onClick={() => toast.success('Product catalog exported.')}
+            className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-sm font-medium text-slate-700"
+          >
             <Download size={15} />
             Export
-          </Button>
-          <Button size="sm" onPress={() => navigate('/products/products/new')}>
+          </button>
+          <button
+            type="button"
+            onClick={() => navigate('/products/products/new')}
+            className="inline-flex cursor-pointer items-center gap-2 rounded-lg bg-[#2f6fed] px-3.5 py-2 text-sm font-medium text-white"
+          >
             <Plus size={15} />
             Add Product
-          </Button>
+          </button>
         </div>
+      </div>
+
+      <div className="inline-flex max-w-full flex-wrap gap-1 rounded-xl bg-[#e6edf5] p-1">
+        {tabs.map((tab) => (
+          <NavLink
+            key={tab.to}
+            to={tab.to}
+            end
+            className={({ isActive }) =>
+              `rounded-lg px-3 py-1.5 text-sm ${
+                isActive ? 'bg-white font-medium text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-800'
+              }`
+            }
+          >
+            {tab.label}
+          </NavLink>
+        ))}
       </div>
 
       <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
         <StatCard
           label="Active products"
-          value="3,846"
+          value={countLabel(activeTotal, activeQuery)}
           hint="+42 this month"
           hintClassName="text-emerald-500"
           hintAside
@@ -184,7 +244,7 @@ function ProductPage() {
         />
         <StatCard
           label="Inactive"
-          value="61"
+          value={countLabel(inactiveTotal, inactiveQuery)}
           hint="review needed"
           hintClassName="text-slate-400"
           icon={Trash2}
@@ -193,52 +253,69 @@ function ProductPage() {
       </section>
 
       <section className="rounded-2xl border border-slate-200/80 bg-white shadow-sm">
-        <div className="flex flex-col gap-3 border-b border-slate-100 px-5 py-4 lg:flex-row lg:items-start lg:justify-between">
-          <div>
-            <h2 className="text-base font-semibold text-slate-900">Product catalog</h2>
-            <p className="mt-0.5 text-sm text-slate-400">
-              {catalogTotal.toLocaleString('en-US')} products · stock shown for {warehouse} (PKR)
-            </p>
-          </div>
-          <p className="text-sm text-slate-400">Updated 2 min ago</p>
+        <div className="border-b border-slate-100 px-5 py-4">
+          <h2 className="text-base font-semibold text-slate-900">Product catalog</h2>
+          <p className="mt-0.5 text-sm text-slate-400">{summary}</p>
         </div>
 
         <div className="flex flex-col gap-2 px-5 py-3 lg:flex-row lg:items-center">
           <label className="relative min-w-0 flex-1">
             <Search size={15} className="absolute top-1/2 left-3 -translate-y-1/2 text-slate-400" />
             <input
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
               placeholder="Search name, SKU, or barcode"
               className="w-full rounded-lg border border-slate-200 py-2 pr-3 pl-9 text-sm outline-none focus:border-sky-400"
             />
           </label>
-          <FilterSelect value={category} onChange={setCategory} options={categories} />
-          <FilterSelect value={status} onChange={setStatus} options={statuses} />
-          <FilterSelect value={warehouse} onChange={setWarehouse} options={warehouses} />
-          <button
-            type="button"
-            onClick={() => toast.success('More filters opened.')}
-            className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700"
-          >
-            <SlidersHorizontal size={15} />
-            More filters
+          <FilterSelect
+            value={categoryId}
+            onChange={setCategoryId}
+            ariaLabel="Category"
+            options={[
+              { label: categoriesQuery.isLoading ? 'Loading categories...' : 'All categories', value: '' },
+              ...categories.map((category) => ({
+                value: category._id,
+                label: category.code ? `${category.name} (${category.code})` : category.name,
+              })),
+            ]}
+          />
+          <FilterSelect value={status} onChange={setStatus} ariaLabel="Status" options={statusOptions} />
+          <button type="button" onClick={clearFilters} className="cursor-pointer px-2 py-2 text-sm font-medium text-[#2f6fed]">
+            Clear filters
           </button>
         </div>
 
         <GlobalTable
           ariaLabel="Product catalog"
           columns={columns}
-          data={filtered}
+          data={products}
           pagination
-          rowsPerPage={rowsPerPage}
-          // className="h-auto! max-h-none!"
-          emptyContent="No products match these filters."
+          rowsPerPage={limit}
+          page={page}
+          totalCount={total}
+          onPageChange={setPage}
+          summary={summary}
+          contentClassName="min-w-[860px]"
+          className="h-auto! max-h-none!"
+          emptyContent={
+            productsQuery.isError
+              ? productsQuery.error.response?.data?.message || 'Could not load products.'
+              : productsQuery.isLoading
+                ? 'Loading products...'
+                : 'No products match these filters.'
+          }
           rowClassName="border-b border-slate-100 last:border-b-0 hover:bg-slate-50"
         />
       </section>
     </div>
   )
+}
+
+function countLabel(total, query) {
+  if (typeof total === 'number') return total.toLocaleString('en-US')
+  if (query.isError) return '—'
+  return '...'
 }
 
 function StatCard({
@@ -283,17 +360,23 @@ function StatCard({
   )
 }
 
-function FilterSelect({ value, onChange, options }) {
+function FilterSelect({ value, onChange, options, ariaLabel }) {
   return (
-    <select
-      value={value}
-      onChange={(event) => onChange(event.target.value)}
-      className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:border-sky-400"
-    >
-      {options.map((option) => (
-        <option key={option}>{option}</option>
-      ))}
-    </select>
+    <label className="relative">
+      <select
+        value={value}
+        aria-label={ariaLabel}
+        onChange={(event) => onChange(event.target.value)}
+        className="w-full appearance-none rounded-lg border border-slate-200 bg-white py-2 pr-9 pl-3 text-sm text-slate-700 outline-none focus:border-sky-400 lg:w-48"
+      >
+        {options.map((option) => (
+          <option key={option.value || option.label} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </select>
+      <ChevronDown size={15} className="pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 text-slate-400" />
+    </label>
   )
 }
 
