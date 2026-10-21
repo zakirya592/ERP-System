@@ -10,7 +10,7 @@ import { fetchAllPages } from '../../../utils/exportExcel.js'
 
 const limit = 20
 
-const tabs = ['Branches', 'Shops', 'Warehouses', 'Employees', 'Owners', 'Relationships']
+const tabs = ['Branches', 'Shops', 'Warehouses', 'Employees', 'Owners', 'Partnerships']
 
 const statusOptions = [
   { label: 'All statuses', value: '' },
@@ -325,6 +325,10 @@ function BranchPage() {
               }
               if (item === 'Owners') {
                 navigate('/organization/owners')
+                return
+              }
+              if (item === 'Partnerships') {
+                navigate('/organization/partnerships')
                 return
               }
               setTab(item)

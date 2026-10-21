@@ -26,6 +26,7 @@ const tabRoutes = {
   Shops: '/organization/shop',
   Warehouses: '/organization/warehouses',
   Employees: '/organization/employees',
+  Partnerships: '/organization/partnerships',
 }
 
 export const owners = [

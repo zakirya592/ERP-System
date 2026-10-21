@@ -31,6 +31,7 @@ export const sidebarMenu = [
       { key: 'shop', label: 'Shop', to: '/organization/shop' },
       { key: 'employees', label: 'Employees', to: '/organization/employees' },
       { key: 'owners', label: 'Owners', to: '/organization/owners' },
+      { key: 'partnerships', label: 'Partnerships', to: '/organization/partnerships' },
     ],
   },
   {

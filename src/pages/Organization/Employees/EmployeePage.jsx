@@ -19,6 +19,7 @@ const tabRoutes = {
   Warehouses: '/organization/warehouses',
   Branches: '/organization/branches',
   Owners: '/organization/owners',
+  Partnerships: '/organization/partnerships',
 }
 
 const statusOptions = [

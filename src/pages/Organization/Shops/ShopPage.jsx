@@ -19,6 +19,7 @@ const tabRoutes = {
   Warehouses: '/organization/warehouses',
   Employees: '/organization/employees',
   Owners: '/organization/owners',
+  Partnerships: '/organization/partnerships',
 }
 
 const statusOptions = [{ label: 'All statuses', value: '' }, ...shopStatuses]
