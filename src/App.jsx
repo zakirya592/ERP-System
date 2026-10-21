@@ -55,6 +55,10 @@ import AddPackingUnitPage from './pages/MasterData/PackingUnits/AddPackingUnitPa
 import PackingUnitsPage from './pages/MasterData/PackingUnits/PackingUnitsPage.jsx'
 import UpdatePackingUnitPage from './pages/MasterData/PackingUnits/UpdatePackingUnitPage.jsx'
 import ViewPackingUnitPage from './pages/MasterData/PackingUnits/ViewPackingUnitPage.jsx'
+import AddProductCategoryPage from './pages/MasterData/ProductCategories/AddProductCategoryPage.jsx'
+import ProductCategoriesPage from './pages/MasterData/ProductCategories/ProductCategoriesPage.jsx'
+import UpdateProductCategoryPage from './pages/MasterData/ProductCategories/UpdateProductCategoryPage.jsx'
+import ViewProductCategoryPage from './pages/MasterData/ProductCategories/ViewProductCategoryPage.jsx'
 import ModulePage from './pages/ModulePage.jsx'
 
 function App() {
@@ -116,6 +120,10 @@ function App() {
         <Route path="/master-data/packing-units/:id/edit" element={<UpdatePackingUnitPage />} />
         <Route path="/master-data/packing-units/:id" element={<ViewPackingUnitPage />} />
         <Route path="/master-data/packing-units" element={<PackingUnitsPage />} />
+        <Route path="/master-data/categories/new" element={<AddProductCategoryPage />} />
+        <Route path="/master-data/categories/:id/edit" element={<UpdateProductCategoryPage />} />
+        <Route path="/master-data/categories/:id" element={<ViewProductCategoryPage />} />
+        <Route path="/master-data/categories" element={<ProductCategoriesPage />} />
         <Route path=":section/:page" element={<ModulePage />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />

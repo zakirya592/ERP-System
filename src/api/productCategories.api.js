@@ -8,3 +8,21 @@ export const getProductCategories = async ({ page = 1, limit = 100, search = '',
 
   return response.data
 }
+
+export const getProductCategory = async (id) => {
+  const response = await api.get(`/product-categories/${id}`)
+
+  return response.data
+}
+
+export const createProductCategory = async (data) => {
+  const response = await api.post('/product-categories', data)
+
+  return response.data
+}
+
+export const updateProductCategory = async (id, data) => {
+  const response = await api.patch(`/product-categories/${id}`, data)
+
+  return response.data
+}
