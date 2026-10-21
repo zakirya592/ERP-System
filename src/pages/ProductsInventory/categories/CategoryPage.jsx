@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Button } from '@heroui/react'
-import { ChevronRight, CircleCheck, ClipboardList, Download, GitBranch, Info, Plus, Search, Tag, Trash2 } from 'lucide-react'
+import { ChevronRight, CircleCheck, ClipboardList, GitBranch, Info, Plus, Search, Tag, Trash2 } from 'lucide-react'
 import { toast } from 'react-toastify'
+import ExportButton from '../../../components/ExportButton.jsx'
 import GlobalTable from '../../../components/GlobalTable.jsx'
 import InventoryTabs from '../InventoryTabs.jsx'
 
@@ -158,10 +159,12 @@ function CategoryPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onPress={() => toast.success('Category register exported.')}>
-            <Download size={15} />
-            Export
-          </Button>
+          <ExportButton
+            filename="inventory-categories"
+            sheetName="Categories"
+            columns={categoryColumns(selectedId)}
+            rows={filtered}
+          />
           <Button size="sm" onPress={() => toast.success('Add category opened.')}>
             <Plus size={15} />
             Add Category

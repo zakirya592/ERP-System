@@ -1,9 +1,12 @@
 import { useEffect, useState } from 'react'
-import { Download, Eye, Pencil, Plus, Search } from 'lucide-react'
+import { Eye, Pencil, Plus, Search } from 'lucide-react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { toast } from 'react-toastify'
+import ExportButton from '../../../components/ExportButton.jsx'
 import GlobalTable from '../../../components/GlobalTable.jsx'
+import { getEmployees } from '../../../api/employees.api.js'
 import { useBranches } from '../../../queries/branches/branches.queries.js'
+import { fetchAllPages } from '../../../utils/exportExcel.js'
 import { useEmployee, useEmployees, useUpdateEmployeeStatus } from '../../../queries/employees/employees.queries.js'
 import { display, employeeAccess, employeeSummary, employmentStatuses, mapEmployee, statusClassName } from './employeeRecords.js'
 
@@ -243,14 +246,16 @@ function EmployeePage() {
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            onClick={() => toast.success('Employee register exported.')}
-            className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-sm font-medium text-slate-700 cursor-pointer"
-          >
-            <Download size={15} />
-            Export
-          </button>
+          <ExportButton
+            filename="employees"
+            sheetName="Employees"
+            columns={employeeColumns(viewEmployee, editEmployee)}
+            loadRows={async () => {
+              const rows = await fetchAllPages(getEmployees, { search: debouncedSearch, status })
+              const mappedRows = rows.map(mapEmployee)
+              return branch ? mappedRows.filter((employee) => employee.branchId === branch) : mappedRows
+            }}
+          />
           <button
             type="button"
             onClick={() => navigate('/organization/employees/new')}

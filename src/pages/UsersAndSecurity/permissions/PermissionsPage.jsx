@@ -1,11 +1,21 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Check, Minus, Search } from 'lucide-react'
 import { Link } from 'react-router-dom'
+import ExportButton from '../../../components/ExportButton.jsx'
+import { getPermissions } from '../../../api/permissions.api.js'
 import { usePermissions } from '../../../queries/permissions/permissions.queries.js'
+import { fetchAllPages } from '../../../utils/exportExcel.js'
 
 const limit = 20
 
 const actionOrder = ['create', 'read', 'update', 'delete', 'approve', 'post', 'all']
+
+const exportColumns = [
+  { key: 'module', label: 'Module' },
+  { key: 'action', label: 'Action' },
+  { key: 'code', label: 'Code' },
+  { key: 'name', label: 'Name' },
+]
 
 function titleCase(value) {
   return String(value || '')
@@ -83,7 +93,8 @@ function PermissionsPage() {
 
   return (
     <div className="space-y-4">
-      <div>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div>
         <nav aria-label="Breadcrumb" className="flex flex-wrap items-center gap-2 text-sm text-slate-400">
           <Link to="/dashboard" className="text-sm font-medium text-slate-700 hover:text-slate-700">
             Dashboard
@@ -93,6 +104,13 @@ function PermissionsPage() {
         </nav>
         <h1 className="mt-1 text-[32px] leading-none font-semibold tracking-tight text-slate-900">Permissions</h1>
         <p className="mt-2 text-sm text-slate-500">Actions available on each module.</p>
+        </div>
+        <ExportButton
+          filename="permissions"
+          sheetName="Permissions"
+          columns={exportColumns}
+          loadRows={() => fetchAllPages(getPermissions, { search: debouncedSearch })}
+        />
       </div>
 
       <section className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm">

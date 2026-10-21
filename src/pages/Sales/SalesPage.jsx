@@ -1,8 +1,8 @@
 import { useMemo, useState } from 'react'
 import { Button } from '@heroui/react'
-import { Clock, Download, LayoutGrid, Plus, Search, TrendingUp } from 'lucide-react'
+import { Clock, LayoutGrid, Plus, Search, TrendingUp } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
-import { toast } from 'react-toastify'
+import ExportButton from '../../components/ExportButton.jsx'
 import GlobalTable from '../../components/GlobalTable.jsx'
 
 const rowsPerPage = 8
@@ -177,10 +177,7 @@ function SalesPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onPress={() => toast.success('Sales register exported.')}>
-            <Download size={15} />
-            Export
-          </Button>
+          <ExportButton filename="sales" sheetName="Sales" columns={columns} rows={filtered} />
           <Button size="sm" onPress={() => navigate('/sales/sales/new')}>
             <Plus size={15} />
             New Sale

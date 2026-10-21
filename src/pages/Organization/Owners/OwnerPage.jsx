@@ -1,7 +1,8 @@
 import { useState } from 'react'
-import { Download, Plus, Search } from 'lucide-react'
+import { Plus, Search } from 'lucide-react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { toast } from 'react-toastify'
+import ExportButton from '../../../components/ExportButton.jsx'
 import GlobalTable from '../../../components/GlobalTable.jsx'
 import {
   formatMoney,
@@ -291,14 +292,12 @@ function OwnerPage() {
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            onClick={() => toast.success('Owner register exported.')}
-            className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-sm font-medium text-slate-700"
-          >
-            <Download size={15} />
-            Export
-          </button>
+          <ExportButton
+            filename="owners"
+            sheetName="Owners"
+            columns={ownerColumns(viewOwner, editOwner)}
+            rows={filtered}
+          />
           <button
             type="button"
             onClick={() => navigate('/organization/owners/new')}

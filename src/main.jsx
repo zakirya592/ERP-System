@@ -21,7 +21,7 @@ createRoot(document.getElementById('root')).render(
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
         <App />
-        <ToastContainer position="top-right" />
+        <ToastContainer position="top-center" />
       </BrowserRouter>
     </QueryClientProvider>
   </StrictMode>,

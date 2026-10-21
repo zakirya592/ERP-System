@@ -1,11 +1,14 @@
 import { useEffect, useState } from 'react'
-import { Boxes, ChevronDown, CircleDollarSign, Download, Eye, Pencil, Plus, Search, Trash2, TriangleAlert, Upload } from 'lucide-react'
+import { Boxes, ChevronDown, CircleDollarSign, Eye, Pencil, Plus, Search, Trash2, TriangleAlert, Upload } from 'lucide-react'
 import { Link, useNavigate } from 'react-router-dom'
 import { toast } from 'react-toastify'
+import ExportButton from '../../../components/ExportButton.jsx'
 import GlobalTable from '../../../components/GlobalTable.jsx'
 import InventoryTabs from '../InventoryTabs.jsx'
+import { getProducts } from '../../../api/products.api.js'
 import { useProductCategories } from '../../../queries/productCategories/productCategories.queries.js'
 import { useProducts } from '../../../queries/products/products.queries.js'
+import { fetchAllPages } from '../../../utils/exportExcel.js'
 import { money, refName, statusLabel, unitLabel } from './productRecords.js'
 
 const limit = 20
@@ -85,11 +88,13 @@ function ProductPage() {
     {
       key: 'category',
       label: 'Category',
+      exportValue: (item) => refName(item.categoryId),
       renderCell: (item) => <span className="text-[13px] text-slate-500">{refName(item.categoryId) || '—'}</span>,
     },
     {
       key: 'unit',
       label: 'Unit',
+      exportValue: (item) => unitLabel(item.quantityUnitId),
       renderCell: (item) => <span className="text-[13px] text-slate-500">{unitLabel(item.quantityUnitId)}</span>,
     },
     {
@@ -97,6 +102,7 @@ function ProductPage() {
       label: 'Cost',
       className: 'text-right',
       cellClassName: 'text-right',
+      exportValue: (item) => item.costPrice ?? '',
       renderCell: (item) => <span className="text-[13px] text-slate-700">{money(item.costPrice)}</span>,
     },
     {
@@ -104,6 +110,7 @@ function ProductPage() {
       label: 'Sale',
       className: 'text-right',
       cellClassName: 'text-right',
+      exportValue: (item) => item.salePrice ?? '',
       renderCell: (item) => <span className="text-[13px] text-slate-700">{money(item.salePrice)}</span>,
     },
     {
@@ -111,11 +118,13 @@ function ProductPage() {
       label: 'Reorder',
       className: 'text-right',
       cellClassName: 'text-right',
+      exportValue: (item) => item.reorderLevel ?? '',
       renderCell: (item) => <span className="text-[13px] text-slate-700">{item.reorderLevel ?? '—'}</span>,
     },
     {
       key: 'status',
       label: 'Status',
+      exportValue: (item) => statusLabel(item.status),
       renderCell: (item) => (
         <span
           className={`inline-flex rounded-full px-2.5 py-0.5 text-[12px] font-medium ${
@@ -179,14 +188,12 @@ function ProductPage() {
             <Upload size={15} />
             Import
           </button>
-          <button
-            type="button"
-            onClick={() => toast.success('Product catalog exported.')}
-            className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-sm font-medium text-slate-700"
-          >
-            <Download size={15} />
-            Export
-          </button>
+          <ExportButton
+            filename="products"
+            sheetName="Products"
+            columns={columns}
+            loadRows={() => fetchAllPages(getProducts, { search: debouncedSearch, status, categoryId })}
+          />
           <button
             type="button"
             onClick={() => navigate('/products/products/new')}

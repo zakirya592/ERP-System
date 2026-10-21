@@ -1,9 +1,12 @@
 import { useEffect, useState } from 'react'
-import { Download, Eye, Pencil, Plus, Search } from 'lucide-react'
+import { Eye, Pencil, Plus, Search } from 'lucide-react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { toast } from 'react-toastify'
+import ExportButton from '../../../components/ExportButton.jsx'
 import GlobalTable from '../../../components/GlobalTable.jsx'
+import { getShops } from '../../../api/shops.api.js'
 import { useBranches } from '../../../queries/branches/branches.queries.js'
+import { fetchAllPages } from '../../../utils/exportExcel.js'
 import { useShop, useShops, useUpdateShopStatus } from '../../../queries/shops/shops.queries.js'
 import { display, mapShop, shopAccess, shopRule, shopStatuses, statusClassName } from './shopRecords.js'
 
@@ -227,14 +230,15 @@ function ShopPage() {
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            onClick={() => toast.success('Shop register exported.')}
-            className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-sm font-medium text-slate-700"
-          >
-            <Download size={15} />
-            Export
-          </button>
+          <ExportButton
+            filename="shops"
+            sheetName="Shops"
+            columns={shopColumns(viewShop, editShop)}
+            loadRows={async () => {
+              const rows = await fetchAllPages(getShops, { search: debouncedSearch, status, branchId: branch })
+              return rows.map(mapShop)
+            }}
+          />
           <button
             type="button"
             onClick={() => navigate('/organization/shop/new')}

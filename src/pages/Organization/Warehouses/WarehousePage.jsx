@@ -1,9 +1,12 @@
 import { useEffect, useState } from 'react'
-import { Download, Eye, Pencil, Plus, Search } from 'lucide-react'
+import { Eye, Pencil, Plus, Search } from 'lucide-react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { toast } from 'react-toastify'
+import ExportButton from '../../../components/ExportButton.jsx'
 import GlobalTable from '../../../components/GlobalTable.jsx'
+import { getWarehouses } from '../../../api/warehouses.api.js'
 import { useBranches } from '../../../queries/branches/branches.queries.js'
+import { fetchAllPages } from '../../../utils/exportExcel.js'
 import { useUpdateWarehouseStatus, useWarehouse, useWarehouses } from '../../../queries/warehouses/warehouses.queries.js'
 import { display, mapWarehouse, statusClassName, warehouseAccess, warehouseRule, warehouseStatuses } from './warehouseRecords.js'
 
@@ -232,14 +235,15 @@ function WarehousePage() {
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            onClick={() => toast.success('Warehouse register exported.')}
-            className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-sm font-medium text-slate-700"
-          >
-            <Download size={15} />
-            Export
-          </button>
+          <ExportButton
+            filename="warehouses"
+            sheetName="Warehouses"
+            columns={warehouseColumns(viewWarehouse, editWarehouse)}
+            loadRows={async () => {
+              const rows = await fetchAllPages(getWarehouses, { search: debouncedSearch, status, branchId: branch })
+              return rows.map(mapWarehouse)
+            }}
+          />
           <button
             type="button"
             onClick={() => navigate('/organization/warehouses/new')}

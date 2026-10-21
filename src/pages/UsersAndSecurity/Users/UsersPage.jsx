@@ -2,8 +2,11 @@ import { useEffect, useState } from 'react'
 import { Button } from '@heroui/react'
 import { Eye, Pencil, Plus, Search } from 'lucide-react'
 import { Link, useNavigate } from 'react-router-dom'
+import ExportButton from '../../../components/ExportButton.jsx'
 import GlobalTable from '../../../components/GlobalTable.jsx'
+import { getUsers } from '../../../api/users.api.js'
 import { useUsers } from '../../../queries/users/users.queries.js'
+import { fetchAllPages } from '../../../utils/exportExcel.js'
 
 const limit = 20
 
@@ -49,6 +52,7 @@ const userColumns = [
   {
     key: 'role',
     label: 'ROLE',
+    exportValue: (item) => item.roleIds?.map((role) => role.name).filter(Boolean).join(', ') || '',
     renderCell: (item) => (
       <span className="text-[13px] text-slate-600">
         {item.roleIds?.map((role) => role.name).filter(Boolean).join(', ') || '—'}
@@ -71,6 +75,7 @@ const userColumns = [
   {
     key: 'lastLoginAt',
     label: 'LAST LOGIN',
+    exportValue: (item) => (item.lastLoginAt ? formatWhen(item.lastLoginAt) : ''),
     renderCell: (item) => <span className="text-[13px] text-slate-500">{formatWhen(item.lastLoginAt)}</span>,
   },
 ]
@@ -136,10 +141,18 @@ function UsersPage() {
           <h1 className="mt-1 text-[32px] leading-none font-semibold tracking-tight text-slate-900">Users</h1>
           <p className="mt-2 text-sm text-slate-500">People who can sign in, and the roles assigned to them.</p>
         </div>
-        <Button size="sm" onPress={() => navigate('/users/users/new')}>
-          <Plus size={15} />
-          Add User
-        </Button>
+        <div className="flex items-center gap-2">
+          <ExportButton
+            filename="users"
+            sheetName="Users"
+            columns={columns}
+            loadRows={() => fetchAllPages(getUsers, { search: debouncedSearch, status })}
+          />
+          <Button size="sm" onPress={() => navigate('/users/users/new')}>
+            <Plus size={15} />
+            Add User
+          </Button>
+        </div>
       </div>
 
       <section className="rounded-2xl border border-slate-200/80 bg-white shadow-sm">

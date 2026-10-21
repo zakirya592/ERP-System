@@ -2,8 +2,11 @@ import { useEffect, useState } from 'react'
 import { ChevronDown, Eye, Pencil, Plus, Search, Upload } from 'lucide-react'
 import { Link, useNavigate } from 'react-router-dom'
 import { toast } from 'react-toastify'
+import ExportButton from '../../../components/ExportButton.jsx'
 import GlobalTable from '../../../components/GlobalTable.jsx'
+import { getCurrencies } from '../../../api/currencies.api.js'
 import { useCurrencies, useUpdateCurrencyStatus } from '../../../queries/currencies/currencies.queries.js'
+import { fetchAllPages } from '../../../utils/exportExcel.js'
 import MasterDataTabs from '../MasterDataTabs.jsx'
 
 const limit = 20
@@ -131,6 +134,7 @@ function CurrenciesPage() {
     {
       key: 'designation',
       label: 'DESIGNATION',
+      exportValue: (item) => (item.isBaseCurrency ? 'Base currency' : 'Foreign'),
       renderCell: (item) => <DesignationPill base={item.isBaseCurrency} />,
     },
     {
@@ -196,6 +200,12 @@ function CurrenciesPage() {
             <Upload size={15} />
             Import
           </button>
+          <ExportButton
+            filename="currencies"
+            sheetName="Currencies"
+            columns={columns}
+            loadRows={() => fetchAllPages(getCurrencies, { search: debouncedSearch, status })}
+          />
           <button
             type="button"
             onClick={() => navigate('/master-data/currency/new')}

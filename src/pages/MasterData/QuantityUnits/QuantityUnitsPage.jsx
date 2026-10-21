@@ -2,8 +2,11 @@ import { useEffect, useState } from 'react'
 import { ChevronDown, Eye, Pencil, Plus, Search, Upload } from 'lucide-react'
 import { Link, useNavigate } from 'react-router-dom'
 import { toast } from 'react-toastify'
+import ExportButton from '../../../components/ExportButton.jsx'
 import GlobalTable from '../../../components/GlobalTable.jsx'
+import { getQuantityUnits } from '../../../api/quantityUnits.api.js'
 import { useQuantityUnits } from '../../../queries/quantityUnits/quantityUnits.queries.js'
+import { fetchAllPages } from '../../../utils/exportExcel.js'
 import MasterDataTabs from '../MasterDataTabs.jsx'
 
 const limit = 20
@@ -82,6 +85,7 @@ function QuantityUnitsPage() {
     {
       key: 'decimalAllowed',
       label: 'DECIMALS',
+      exportValue: (item) => (item.decimalAllowed ? 'Allowed' : 'Whole'),
       renderCell: (item) => (
         <span
           className={`inline-flex rounded-full px-2.5 py-0.5 text-[12px] font-medium ${
@@ -148,6 +152,12 @@ function QuantityUnitsPage() {
             <Upload size={15} />
             Import
           </button>
+          <ExportButton
+            filename="quantity-units"
+            sheetName="Quantity Units"
+            columns={columns}
+            loadRows={() => fetchAllPages(getQuantityUnits, { search: debouncedSearch, status })}
+          />
           <button
             type="button"
             onClick={() => navigate('/master-data/units/new')}

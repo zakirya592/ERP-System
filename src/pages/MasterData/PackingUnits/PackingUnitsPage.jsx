@@ -2,10 +2,13 @@ import { useEffect, useState } from 'react'
 import { ChevronDown, Eye, Pencil, Plus, Search, Upload } from 'lucide-react'
 import { Link, useNavigate } from 'react-router-dom'
 import { toast } from 'react-toastify'
+import ExportButton from '../../../components/ExportButton.jsx'
 import GlobalTable from '../../../components/GlobalTable.jsx'
+import { getPackingUnits } from '../../../api/packingUnits.api.js'
 import { usePackingUnits } from '../../../queries/packingUnits/packingUnits.queries.js'
 import { useQuantityUnits } from '../../../queries/quantityUnits/quantityUnits.queries.js'
 import MasterDataTabs from '../MasterDataTabs.jsx'
+import { fetchAllPages } from '../../../utils/exportExcel.js'
 
 const limit = 20
 
@@ -94,6 +97,10 @@ function PackingUnitsPage() {
     {
       key: 'conversionQuantity',
       label: 'CONVERSION',
+      exportValue: (item) =>
+        item.conversionQuantity
+          ? `${item.conversionQuantity}${item.quantityUnitId?.shortCode ? ` ${item.quantityUnitId.shortCode}` : ''}`
+          : '',
       renderCell: (item) => (
         <span className="text-[13px] text-slate-700">
           {item.conversionQuantity || '—'}
@@ -104,6 +111,7 @@ function PackingUnitsPage() {
     {
       key: 'quantityUnitId',
       label: 'QUANTITY UNIT',
+      exportValue: (item) => quantityUnitLabel(item),
       renderCell: (item) => <span className="text-[13px] text-slate-700">{quantityUnitLabel(item)}</span>,
     },
     {
@@ -162,6 +170,14 @@ function PackingUnitsPage() {
             <Upload size={15} />
             Import
           </button>
+          <ExportButton
+            filename="packing-units"
+            sheetName="Packing Units"
+            columns={columns}
+            loadRows={() =>
+              fetchAllPages(getPackingUnits, { search: debouncedSearch, status, quantityUnitId })
+            }
+          />
           <button
             type="button"
             onClick={() => navigate('/master-data/packing-units/new')}

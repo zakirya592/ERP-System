@@ -1,8 +1,9 @@
 import { useMemo, useState } from 'react'
 import { Button } from '@heroui/react'
-import { Download, Plus, Search } from 'lucide-react'
+import { Plus, Search } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'react-toastify'
+import ExportButton from '../../components/ExportButton.jsx'
 import GlobalTable from '../../components/GlobalTable.jsx'
 
 const tabs = [
@@ -308,14 +309,7 @@ function SupplierPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onPress={() => toast.success('Supplier register exported.')}
-          >
-            <Download size={15} />
-            Export
-          </Button>
+          <ExportButton filename="suppliers" sheetName="Suppliers" columns={supplierColumns} rows={filtered} />
           <Button size="sm" onPress={() => navigate('/purchases/suppliers/new')}>
             <Plus size={15} />
             Add Supplier

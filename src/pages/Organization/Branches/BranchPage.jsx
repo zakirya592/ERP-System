@@ -2,8 +2,11 @@ import { useEffect, useState } from 'react'
 import { Eye, Pencil, Plus, Search, Users } from 'lucide-react'
 import { Link, useNavigate } from 'react-router-dom'
 import { toast } from 'react-toastify'
+import ExportButton from '../../../components/ExportButton.jsx'
 import GlobalTable from '../../../components/GlobalTable.jsx'
+import { getBranches } from '../../../api/branches.api.js'
 import { useBranch, useBranches, useUpdateBranchStatus } from '../../../queries/branches/branches.queries.js'
+import { fetchAllPages } from '../../../utils/exportExcel.js'
 
 const limit = 20
 
@@ -282,6 +285,15 @@ function BranchPage() {
             <Users size={15} />
             People & Parties
           </button>
+          <ExportButton
+            filename="branches"
+            sheetName="Branches"
+            columns={branchColumns(viewBranch, editBranch)}
+            loadRows={async () => {
+              const rows = await fetchAllPages(getBranches, { search: debouncedSearch, status })
+              return rows.map(mapBranch)
+            }}
+          />
           <button
             type="button"
             onClick={() => navigate('/organization/branches/new')}

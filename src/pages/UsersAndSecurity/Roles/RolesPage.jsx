@@ -3,8 +3,11 @@ import { Button } from '@heroui/react'
 import { Eye, Pencil, Plus, Search } from 'lucide-react'
 import { createPortal } from 'react-dom'
 import { Link, useNavigate } from 'react-router-dom'
+import ExportButton from '../../../components/ExportButton.jsx'
 import GlobalTable from '../../../components/GlobalTable.jsx'
+import { getRoles } from '../../../api/roles.api.js'
 import { useRoleList } from '../../../queries/roles/roles.queries.js'
+import { fetchAllPages } from '../../../utils/exportExcel.js'
 
 const limit = 20
 
@@ -133,6 +136,10 @@ const roleColumns = [
   {
     key: 'permissions',
     label: 'PERMISSIONS',
+    exportValue: (item) =>
+      groupPermissions(item.permissionIds)
+        .map((group) => `${group.label}: ${group.actions.map(titleCase).join(', ')}`)
+        .join('; '),
     renderCell: (item) => <PermissionCell permissions={item.permissionIds} />,
   },
   {
@@ -151,6 +158,7 @@ const roleColumns = [
   {
     key: 'updatedAt',
     label: 'UPDATED',
+    exportValue: (item) => (item.updatedAt ? formatWhen(item.updatedAt) : ''),
     renderCell: (item) => <span className="text-[13px] text-slate-500">{formatWhen(item.updatedAt)}</span>,
   },
 ]
@@ -217,10 +225,18 @@ function RolesPage() {
           <h1 className="mt-1 text-[32px] leading-none font-semibold tracking-tight text-slate-900">Roles</h1>
           <p className="mt-2 text-sm text-slate-500">Roles and the permissions assigned to each one.</p>
         </div>
-        <Button size="sm" onPress={() => navigate('/users/roles/new')}>
-          <Plus size={15} />
-          Add Role
-        </Button>
+        <div className="flex items-center gap-2">
+          <ExportButton
+            filename="roles"
+            sheetName="Roles"
+            columns={columns}
+            loadRows={() => fetchAllPages(getRoles, { search: debouncedSearch, status })}
+          />
+          <Button size="sm" onPress={() => navigate('/users/roles/new')}>
+            <Plus size={15} />
+            Add Role
+          </Button>
+        </div>
       </div>
 
       <section className="rounded-2xl border border-slate-200/80 bg-white shadow-sm">

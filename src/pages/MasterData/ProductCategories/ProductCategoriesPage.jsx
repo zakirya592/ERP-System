@@ -2,8 +2,11 @@ import { useEffect, useState } from 'react'
 import { ChevronDown, Eye, Pencil, Plus, Search, Upload } from 'lucide-react'
 import { Link, useNavigate } from 'react-router-dom'
 import { toast } from 'react-toastify'
+import ExportButton from '../../../components/ExportButton.jsx'
 import GlobalTable from '../../../components/GlobalTable.jsx'
+import { getProductCategories } from '../../../api/productCategories.api.js'
 import { useProductCategories } from '../../../queries/productCategories/productCategories.queries.js'
+import { fetchAllPages } from '../../../utils/exportExcel.js'
 import MasterDataTabs from '../MasterDataTabs.jsx'
 import { parentLabel } from './categoryRecords.js'
 
@@ -85,6 +88,7 @@ function ProductCategoriesPage() {
     {
       key: 'parent',
       label: 'PARENT',
+      exportValue: (item) => parentLabel(item, lookup),
       renderCell: (item) => <span className="text-[13px] text-slate-600">{parentLabel(item, lookup)}</span>,
     },
     {
@@ -143,6 +147,12 @@ function ProductCategoriesPage() {
             <Upload size={15} />
             Import
           </button>
+          <ExportButton
+            filename="product-categories"
+            sheetName="Product Categories"
+            columns={columns}
+            loadRows={() => fetchAllPages(getProductCategories, { search: debouncedSearch, status })}
+          />
           <button
             type="button"
             onClick={() => navigate('/master-data/categories/new')}
