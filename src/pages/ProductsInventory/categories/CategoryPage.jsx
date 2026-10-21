@@ -1,79 +1,16 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Button } from '@heroui/react'
-import { ChevronRight, CircleCheck, ClipboardList, GitBranch, Info, Plus, Search, Tag, Trash2 } from 'lucide-react'
+import { ArrowRight, ArrowUpRight, ChevronRight, CircleCheck, ClipboardList, Eye, GitBranch, Pencil, Plus, Search, Tag, Trash2 } from 'lucide-react'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { toast } from 'react-toastify'
 import ExportButton from '../../../components/ExportButton.jsx'
 import GlobalTable from '../../../components/GlobalTable.jsx'
+import { useProductCategories, useUpdateProductCategory } from '../../../queries/productCategories/productCategories.queries.js'
+import { useProducts } from '../../../queries/products/products.queries.js'
+import { parentIdOf } from '../../MasterData/ProductCategories/categoryRecords.js'
 import InventoryTabs from '../InventoryTabs.jsx'
 
-function category(code, name, parent, description, status = 'Active', products = [], group = parent || '—') {
-  return {
-    id: code,
-    code,
-    name,
-    parent: parent || '—',
-    group,
-    description,
-    status,
-    products,
-  }
-}
-
-const categories = [
-  category('CAT-FNB', 'Food & Beverage', '', 'Meals, drinks, and grocery classifications', 'Active', [], 'Food & Beverage'),
-  category('CAT-BEV', 'Beverages', 'Food & Beverage', 'Coffee, water, and packaged drinks', 'Active', [
-    { name: 'Arabica Coffee 1 kg', sku: 'BEV-1042', status: 'Active' },
-    { name: 'Sparkling Water 330 ml', sku: 'BEV-1180', status: 'Active' },
-  ]),
-  category('CAT-COF', 'Coffee', 'Beverages', 'Roasted beans and ground coffee', 'Active', [
-    { name: 'Arabica Coffee 1 kg', sku: 'BEV-1042', status: 'Active' },
-  ]),
-  category('CAT-WAT', 'Water', 'Beverages', 'Still and sparkling water', 'Active', [
-    { name: 'Sparkling Water 330 ml', sku: 'BEV-1180', status: 'Active' },
-  ]),
-  category('CAT-DAI', 'Dairy', 'Food & Beverage', 'Milk, cream, and chilled dairy', 'Active', [
-    { name: 'Whole Milk 1 L', sku: 'DAI-0448', status: 'Active' },
-  ]),
-  category('CAT-MLK', 'Milk', 'Dairy', 'Fresh milk and dairy drinks', 'Active', [
-    { name: 'Whole Milk 1 L', sku: 'DAI-0448', status: 'Active' },
-  ]),
-  category('CAT-YOG', 'Yogurt', 'Dairy', 'Cups, pots, and drinking yogurt'),
-  category('CAT-DRY', 'Dry Goods', 'Food & Beverage', 'Rice, flour, and pantry staples'),
-  category('CAT-RIC', 'Rice', 'Dry Goods', 'Basmati and other rice grades', 'Active', [
-    { name: 'Basmati Rice 25 kg', sku: 'DRY-0081', status: 'Active' },
-  ]),
-  category('CAT-FLR', 'Flour', 'Dry Goods', 'Wheat and specialty flours'),
-  category('CAT-SNK', 'Snacks', 'Food & Beverage', 'Chips, nuts, and ready snacks'),
-  category('CAT-CHI', 'Chips', 'Snacks', 'Salted and savory crisps'),
-  category('CAT-BIS', 'Biscuits', 'Snacks', 'Sweet biscuits and tea snacks'),
-  category('CAT-FRZ', 'Frozen', 'Food & Beverage', 'Frozen prepared food ranges', 'Inactive', [
-    { name: 'Frozen Peas 1 kg', sku: 'FZN-0042', status: 'Active' },
-  ]),
-  category('CAT-VEG', 'Vegetables', 'Frozen', 'Frozen peas and mixed vegetables'),
-  category('CAT-SEA', 'Seasonal', 'Food & Beverage', 'Chilled and seasonal fresh ranges', 'Inactive'),
-  category('CAT-HOU', 'Household', '', 'Home and household classifications', 'Active', [], 'Household'),
-  category('CAT-CLN', 'Cleaning', 'Household', 'Cleaning supplies and chemicals', 'Active', [
-    { name: 'Floor Cleaner 5 L', sku: 'CLN-2201', status: 'Active' },
-  ]),
-  category('CAT-FLC', 'Floor Care', 'Cleaning', 'Floor cleaners and disinfectants'),
-  category('CAT-HYG', 'Hygiene', 'Household', 'Soap and personal-care products', 'Active', [
-    { name: 'Hand Wash 500 ml', sku: 'HYG-0032', status: 'Active' },
-  ]),
-  category('CAT-PER', 'Personal Care', 'Hygiene', 'Soap, body wash, and personal hygiene'),
-  category('CAT-OPS', 'Operations', '', 'Operating supplies used across branches', 'Active', [], 'Operations'),
-  category('CAT-PKG', 'Packaging', 'Operations', 'Bags, wraps, and packaging supplies', 'Active', [
-    { name: 'Paper Carry Bag L', sku: 'PKG-3118', status: 'Active' },
-  ]),
-  category('CAT-BAG', 'Paper Carry Bags', 'Packaging', 'Retail paper and plastic bags', 'Active', [
-    { name: 'Paper Carry Bag L', sku: 'PKG-3118', status: 'Active' },
-  ]),
-  category('CAT-CAN', 'Cartons', 'Packaging', 'Folding cartons and shipping boxes'),
-  category('CAT-LAB', 'Labels', 'Packaging', 'Printed labels and shelf tags'),
-]
-
-const parents = ['All parents', ...new Set(categories.map((item) => item.parent).filter((parent) => parent !== '—'))]
-
-function categoryColumns(selectedId) {
+function categoryColumns(selectedId, navigate) {
   return [
     {
       key: 'code',
@@ -85,8 +22,15 @@ function categoryColumns(selectedId) {
       label: 'Category',
       isRowHeader: true,
       renderCell: (item) => (
-        <span className={`text-[13px] font-medium ${item.id === selectedId ? 'text-[#2f6fed]' : 'text-slate-800'}`}>
-          {item.name}
+        <span className="inline-flex min-w-0 items-center" style={{ marginLeft: `${(item.depth || 0) * 18}px` }}>
+          <span className="mr-2 text-[16px] leading-none text-slate-300">·</span>
+          <Link
+            to={`/products/categories/${item.id}`}
+            onClick={(event) => event.stopPropagation()}
+            className={`text-[13px] font-semibold ${item.id === selectedId ? 'text-[#2f6fed]' : 'text-slate-800'}`}
+          >
+            {item.name}
+          </Link>
         </span>
       ),
     },
@@ -94,11 +38,6 @@ function categoryColumns(selectedId) {
       key: 'parent',
       label: 'Parent category',
       renderCell: (item) => <span className="text-[13px] text-slate-500">{item.parent}</span>,
-    },
-    {
-      key: 'description',
-      label: 'Description',
-      renderCell: (item) => <span className="text-[13px] text-slate-500">{item.description}</span>,
     },
     {
       key: 'status',
@@ -109,13 +48,104 @@ function categoryColumns(selectedId) {
         </span>
       ),
     },
+    {
+      key: 'action',
+      label: 'Action',
+      className: 'text-right',
+      cellClassName: 'text-right',
+      renderCell: (item) => (
+        <div className="flex justify-end gap-1">
+          <button
+            type="button"
+            aria-label={`View ${item.name}`}
+            onClick={(event) => {
+              event.stopPropagation()
+              navigate(`/products/categories/${item.id}`)
+            }}
+            className="inline-flex cursor-pointer items-center justify-center rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-[#2563eb]"
+          >
+            <Eye size={16} />
+          </button>
+          <button
+            type="button"
+            aria-label={`Update ${item.name}`}
+            onClick={(event) => {
+              event.stopPropagation()
+              navigate(`/products/categories/${item.id}/edit`)
+            }}
+            className="inline-flex cursor-pointer items-center justify-center rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-[#2563eb]"
+          >
+            <Pencil size={16} />
+          </button>
+        </div>
+      ),
+    },
   ]
 }
+function parentName(item, list) {
+  const parentId = parentIdOf(item)
+  if (!parentId) return '—'
+  return list.find((entry) => entry._id === parentId)?.name || '—'
+}
+
+function nestCategories(items) {
+  const byParent = new Map()
+  items.forEach((item) => {
+    const key = item.parentId || ''
+    const group = byParent.get(key) || []
+    group.push(item)
+    byParent.set(key, group)
+  })
+  byParent.forEach((group) => group.sort((a, b) => a.name.localeCompare(b.name)))
+
+  const ordered = []
+  const seen = new Set()
+  function walk(parentId, depth) {
+    ;(byParent.get(parentId) || []).forEach((item) => {
+      if (seen.has(item.id)) return
+      seen.add(item.id)
+      ordered.push({ ...item, depth })
+      walk(item.id, depth + 1)
+    })
+  }
+
+  walk('', 0)
+  items.forEach((item) => {
+    if (seen.has(item.id)) return
+    seen.add(item.id)
+    const depth = item.parentId ? 1 : 0
+    ordered.push({ ...item, depth })
+    walk(item.id, depth + 1)
+  })
+  return ordered
+}
+
 function CategoryPage() {
+  const navigate = useNavigate()
+  const location = useLocation()
+  const categoriesQuery = useProductCategories({ page: 1, limit: 100, search: '', status: '' })
+  const updateCategory = useUpdateProductCategory()
+  const categories = useMemo(() => {
+    const source = categoriesQuery.data?.data || []
+    const mapped = source.map((item) => ({
+      id: item._id,
+      code: item.code || '',
+      name: item.name || '',
+      parentId: parentIdOf(item),
+      parent: parentName(item, source),
+      status: item.status === 'active' ? 'Active' : 'Inactive',
+      statusValue: item.status || 'inactive',
+    }))
+    return nestCategories(mapped)
+  }, [categoriesQuery.data])
   const [query, setQuery] = useState('')
   const [status, setStatus] = useState('all')
   const [parent, setParent] = useState('All parents')
-  const [selectedId, setSelectedId] = useState('CAT-BEV')
+  const [selectedId, setSelectedId] = useState(location.state?.selectedId || '')
+  const parents = useMemo(
+    () => ['All parents', ...new Set(categories.map((item) => item.parent).filter((value) => value !== '—'))],
+    [categories],
+  )
 
   const filtered = useMemo(() => {
     const needle = query.trim().toLowerCase()
@@ -129,7 +159,7 @@ function CategoryPage() {
       const matchesParent = parent === 'All parents' || item.parent === parent
       return matchesQuery && matchesStatus && matchesParent
     })
-  }, [query, status, parent])
+  }, [categories, query, status, parent])
 
   useEffect(() => {
     if (!filtered.some((category) => category.id === selectedId)) {
@@ -138,9 +168,7 @@ function CategoryPage() {
   }, [filtered, selectedId])
 
   const selected = categories.find((category) => category.id === selectedId)
-  const children = selected
-    ? categories.filter((item) => item.parent === selected.name)
-    : []
+  const children = selected ? categories.filter((item) => item.parentId === selected.id) : []
   const shownActive = filtered.filter((item) => item.status === 'Active').length
   const shownInactive = filtered.length - shownActive
 
@@ -148,9 +176,17 @@ function CategoryPage() {
     <div className="space-y-4">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div>
-          <p className="text-[11px] font-semibold tracking-[0.16em] text-slate-400 uppercase">
-            Products & Inventory (PKR)
-          </p>
+          <nav aria-label="Breadcrumb" className="flex flex-wrap items-center gap-2 text-sm text-slate-400">
+            <Link to="/dashboard" className="font-medium text-slate-700 hover:text-slate-900">
+              Dashboard
+            </Link>
+            <span>/</span>
+            <Link to="/products/products" className="font-medium text-slate-700 hover:text-slate-900">
+              Products & Inventory
+            </Link>
+            <span>/</span>
+            <span className="font-medium text-slate-400">Categories</span>
+          </nav>
           <h1 className="mt-1 text-[32px] leading-none font-semibold tracking-tight text-slate-900">
             Categories
           </h1>
@@ -162,10 +198,10 @@ function CategoryPage() {
           <ExportButton
             filename="inventory-categories"
             sheetName="Categories"
-            columns={categoryColumns(selectedId)}
+            columns={categoryColumns(selectedId, navigate)}
             rows={filtered}
           />
-          <Button size="sm" onPress={() => toast.success('Add category opened.')}>
+          <Button size="sm" onPress={() => navigate('/products/categories/new')}>
             <Plus size={15} />
             Add Category
           </Button>
@@ -175,10 +211,25 @@ function CategoryPage() {
       <InventoryTabs />
 
       <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-        <Metric label="Total categories" value="26" hint="Complete register" icon={ClipboardList} />
-        <Metric label="Active" value="24" hint="Available for classification" icon={CircleCheck} />
-        <Metric label="Inactive" value="2" hint="Historical references retained" icon={Trash2} />
-        <Metric label="Top-level categories" value="3" hint="23 categories have a parent" icon={GitBranch} />
+        <Metric label="Total categories" value={String(categories.length)} hint="Complete register" icon={ClipboardList} />
+        <Metric
+          label="Active"
+          value={String(categories.filter((item) => item.status === 'Active').length)}
+          hint="Available for classification"
+          icon={CircleCheck}
+        />
+        <Metric
+          label="Inactive"
+          value={String(categories.filter((item) => item.status !== 'Active').length)}
+          hint="Historical references retained"
+          icon={Trash2}
+        />
+        <Metric
+          label="Top-level categories"
+          value={String(categories.filter((item) => item.parent === '—').length)}
+          hint={`${categories.filter((item) => item.parent !== '—').length} categories have a parent`}
+          icon={GitBranch}
+        />
       </section>
 
       <div className="category-split grid items-start gap-4">
@@ -232,13 +283,14 @@ function CategoryPage() {
 
           <GlobalTable
             ariaLabel="Category register"
-            columns={categoryColumns(selectedId)}
+            columns={categoryColumns(selectedId, navigate)}
             data={filtered}
             pagination
             rowsPerPage={10}
             className="h-108! max-h-108!"
+            contentClassName = 'min-w-[760px]'
             onRowPress={(item) => setSelectedId(item.id)}
-            emptyContent="No categories match these filters."
+            emptyContent={categoriesQuery.isLoading ? 'Loading categories...' : categoriesQuery.isError ? 'Could not load categories.' : 'No categories match these filters.'}
             rowClassName={(item) =>
               item.id === selectedId
                 ? 'row-selected cursor-pointer border-b border-slate-100'
@@ -251,15 +303,24 @@ function CategoryPage() {
           {selected ? (
             <CategoryDetails
               category={selected}
+              categories={categories}
               children={children}
-              onEdit={() => toast.success(`${selected.name} edit opened.`)}
-              onToggleStatus={() =>
-                toast.success(
-                  selected.status === 'Active'
-                    ? `${selected.name} deactivated.`
-                    : `${selected.name} activated.`,
+              onView={() => navigate(`/products/categories/${selected.id}`)}
+              onEdit={() => navigate(`/products/categories/${selected.id}/edit`)}
+              onToggleStatus={() => {
+                const nextStatus = selected.statusValue === 'active' ? 'inactive' : 'active'
+                updateCategory.mutate(
+                  { id: selected.id, status: nextStatus },
+                  {
+                    onSuccess: (data) => {
+                      toast.success(data?.message || (nextStatus === 'active' ? `${selected.name} activated.` : `${selected.name} deactivated.`))
+                    },
+                    onError: (error) => {
+                      toast.error(error.response?.data?.message || 'Could not update the category status.')
+                    },
+                  },
                 )
-              }
+              }}
             />
           ) : (
             <p className="py-8 text-center text-sm text-slate-400">Select a category to see its details.</p>
@@ -285,18 +346,43 @@ function Metric({ label, value, hint, icon: Icon }) {
   )
 }
 
-function CategoryDetails({ category, children, onEdit, onToggleStatus }) {
-  const segments = category.parent === '—' ? [category.name] : [category.parent, category.name]
+function ancestorChain(category, categories) {
+  const chain = []
+  const seen = new Set()
+  let current = category
+  while (current && !seen.has(current.id)) {
+    seen.add(current.id)
+    chain.unshift(current)
+    current = current.parentId ? categories.find((item) => item.id === current.parentId) : null
+  }
+  return chain
+}
+
+function productPack(product) {
+  const unit =
+    product.packingUnitId && typeof product.packingUnitId === 'object'
+      ? product.packingUnitId
+      : product.quantityUnitId && typeof product.quantityUnitId === 'object'
+        ? product.quantityUnitId
+        : null
+  if (!unit) return ''
+  return (unit.name || unit.shortCode || '').toLowerCase()
+}
+
+function CategoryDetails({ category, categories, children, onToggleStatus }) {
+  const navigate = useNavigate()
+  const segments = ancestorChain(category, categories)
+  const childRows = [...children].sort((a, b) => a.name.localeCompare(b.name))
   const active = category.status === 'Active'
-  const productCount = category.products.length
+  const productsQuery = useProducts({ page: 1, limit: 4, search: '', status: '', categoryId: category.id })
+  const products = productsQuery.data?.data || []
+  const assigned = productsQuery.data?.meta?.total ?? products.length
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-3">
         <h2 className="text-sm font-semibold text-slate-900">Category details</h2>
-        <button type="button" onClick={onEdit} className="text-sm font-medium text-slate-600">
-          Edit category
-        </button>
+       
       </div>
 
       <div className="flex items-center gap-2.5">
@@ -314,7 +400,6 @@ function CategoryDetails({ category, children, onEdit, onToggleStatus }) {
         <Detail label="Unique code" value={category.code} mono />
       </div>
       <Detail label="Parent category" value={category.parent} />
-      <Detail label="Description" value={category.description} />
       <div>
         <dt className="text-[11px] text-slate-400">Status</dt>
         <dd className={`mt-0.5 text-sm font-medium ${active ? 'text-emerald-600' : 'text-slate-400'}`}>
@@ -323,27 +408,30 @@ function CategoryDetails({ category, children, onEdit, onToggleStatus }) {
       </div>
 
       <div className="rounded-xl bg-slate-50 px-3 py-3">
-        <p className="text-xs font-semibold text-slate-700">Parent & child context</p>
-        <div className="mt-2 flex flex-wrap items-center gap-1">
+        <p className="text-[13px] font-semibold text-slate-800">Parent & child context</p>
+        <div className="mt-2 flex flex-wrap items-center gap-1 text-[13px]">
           {segments.map((segment, index) => (
-            <span key={segment} className="inline-flex items-center gap-1">
-              {index > 0 && <ChevronRight size={12} className="text-slate-400" />}
-              <span className="rounded-md bg-white px-2 py-0.5 text-xs font-medium text-slate-700">
-                {segment}
+            <span key={segment.id} className="inline-flex items-center gap-1">
+              {index > 0 && <ChevronRight size={13} className="text-slate-400" />}
+              <span className={segment.id === category.id ? 'font-medium text-[#2f6fed]' : 'text-slate-500'}>
+                {segment.name}
               </span>
             </span>
           ))}
         </div>
-        <p className="mt-2 text-[11px] text-slate-400">
-          {children.length === 0
+        <p className="mt-3 text-xs text-slate-400">
+          {childRows.length === 0
             ? 'No child categories.'
-            : `${children.length} child ${children.length === 1 ? 'category' : 'categories'}`}
+            : `${childRows.length} child ${childRows.length === 1 ? 'category' : 'categories'}`}
         </p>
-        {children.length > 0 && (
-          <ul className="mt-1">
-            {children.map((child) => (
-              <li key={child.id} className="flex items-center justify-between gap-3 py-1">
-                <span className="text-sm text-slate-700">{child.name}</span>
+        {childRows.length > 0 && (
+          <ul className="mt-2 space-y-2">
+            {childRows.map((child) => (
+              <li key={child.id} className="flex items-center justify-between gap-3">
+                <span className="flex min-w-0 items-center gap-2">
+                  <span className="inline-block h-3.5 w-3 shrink-0 rounded-bl-[3px] border-b border-l border-slate-300" />
+                  <span className="truncate text-sm text-slate-800">{child.name}</span>
+                </span>
                 <StatusPill status={child.status} />
               </li>
             ))}
@@ -351,44 +439,57 @@ function CategoryDetails({ category, children, onEdit, onToggleStatus }) {
         )}
       </div>
 
-      <div>
-        <div className="flex items-center justify-between gap-3">
-          <p className="text-xs font-semibold text-slate-700">Related products</p>
-          <p className="text-[11px] text-slate-400">{productCount} directly assigned</p>
-        </div>
-        {productCount > 0 ? (
-          <ul className="mt-1">
-            {category.products.map((product) => (
-              <li key={product.sku} className="py-1.5">
-                <p className="text-sm font-medium text-slate-800">{product.name}</p>
-                <p className="mt-0.5 flex items-center gap-1.5 text-[11px] text-slate-400">
-                  <span className="font-mono">{product.sku}</span>
-                  <span>·</span>
-                  <span className={`inline-flex items-center gap-1 ${product.status === 'Active' ? 'text-emerald-600' : 'text-slate-400'}`}>
-                    <span
-                      className={`rounded-full ${product.status === 'Active' ? 'bg-emerald-500' : 'bg-slate-300'}`}
-                      style={{ width: 6, height: 6 }}
-                    />
-                    {product.status === 'Active' ? 'Live' : product.status}
-                  </span>
-                </p>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="mt-2 text-sm text-slate-400">No products linked yet.</p>
-        )}
-      </div>
-
-      {productCount > 0 && (
-        <div className="flex gap-2 rounded-lg bg-slate-50 px-3 py-2.5 text-xs leading-5 text-slate-500">
-          <Info size={14} className="mt-0.5 shrink-0 text-slate-400" />
-          <p>
-            This category is referenced by products. Deactivate it instead of deleting it to preserve product
-            history.
+      <div className="rounded-xl border border-slate-200/80 px-3 py-3">
+        <div className="flex items-start justify-between gap-3">
+          <p className="text-[13px] font-semibold text-slate-800">Related products</p>
+          <p className="shrink-0 text-[11px] text-slate-400">
+            {productsQuery.isLoading ? 'Loading...' : `${assigned} directly assigned`}
           </p>
         </div>
-      )}
+        {products.length > 0 ? (
+          <ul className="mt-1 divide-y divide-slate-100">
+            {products.map((product) => {
+              const pack = productPack(product)
+              return (
+                <li key={product._id} className="flex items-center justify-between gap-3 py-2.5">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium text-slate-800">{product.name}</p>
+                    <p className="truncate text-[12px] text-slate-400">
+                      {[product.sku, pack].filter(Boolean).join(' · ') || 'No SKU'}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    aria-label={`Open ${product.name}`}
+                    onClick={() => navigate(`/products/products/${product._id}`)}
+                    className="inline-flex h-7 w-7 shrink-0 cursor-pointer items-center justify-center rounded-md border border-slate-200 text-slate-400 hover:text-[#2f6fed]"
+                  >
+                    <ArrowUpRight size={14} />
+                  </button>
+                </li>
+              )
+            })}
+          </ul>
+        ) : (
+          !productsQuery.isLoading && (
+            <p className="mt-2 text-sm text-slate-400">No products assigned to this category.</p>
+          )
+        )}
+        <Link
+          to={`/products/products?categoryId=${category.id}`}
+          aria-disabled={products.length === 0}
+          tabIndex={products.length === 0 ? -1 : undefined}
+          onClick={(event) => {
+            if (products.length === 0) event.preventDefault()
+          }}
+          className={`mt-2 inline-flex items-center gap-1 text-[13px] font-medium ${
+            products.length === 0 ? 'pointer-events-none text-slate-300' : 'text-[#2f6fed]'
+          }`}
+        >
+          View in Products
+          <ArrowRight size={14} />
+        </Link>
+      </div>
 
       <button
         type="button"

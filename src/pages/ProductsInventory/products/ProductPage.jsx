@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Boxes, ChevronDown, CircleDollarSign, Eye, Pencil, Plus, Search, Trash2, TriangleAlert, Upload } from 'lucide-react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { toast } from 'react-toastify'
 import ExportButton from '../../../components/ExportButton.jsx'
 import GlobalTable from '../../../components/GlobalTable.jsx'
@@ -26,16 +26,22 @@ const statusClass = {
 
 function ProductPage() {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const categoryFromUrl = searchParams.get('categoryId') || ''
   const [page, setPage] = useState(1)
   const [search, setSearch] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
   const [status, setStatus] = useState('')
-  const [categoryId, setCategoryId] = useState('')
+  const [categoryId, setCategoryId] = useState(categoryFromUrl)
 
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearch(search.trim()), 300)
     return () => clearTimeout(timer)
   }, [search])
+
+  useEffect(() => {
+    setCategoryId(categoryFromUrl)
+  }, [categoryFromUrl])
 
   useEffect(() => {
     setPage(1)

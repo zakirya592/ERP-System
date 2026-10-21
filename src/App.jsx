@@ -5,7 +5,10 @@ import LoginPage from './pages/Login/LoginPage.jsx'
 import AddCustomerPage from './pages/Customer/AddCustomerPage.jsx'
 import CustomerPage from './pages/Customer/CustomerPage.jsx'
 import AddProductPage from './pages/ProductsInventory/products/AddProductPage.jsx'
+import AddCategoryPage from './pages/ProductsInventory/categories/AddCategoryPage.jsx'
 import CategoryPage from './pages/ProductsInventory/categories/CategoryPage.jsx'
+import UpdateCategoryPage from './pages/ProductsInventory/categories/UpdateCategoryPage.jsx'
+import ViewCategoryPage from './pages/ProductsInventory/categories/ViewCategoryPage.jsx'
 import ProductPage from './pages/ProductsInventory/products/ProductPage.jsx'
 import UpdateProductPage from './pages/ProductsInventory/products/UpdateProductPage.jsx'
 import ViewProductPage from './pages/ProductsInventory/products/ViewProductPage.jsx'
@@ -106,6 +109,9 @@ function App() {
         <Route path="/products/products/new" element={<AddProductPage />} />
         <Route path="/products/products/:id/edit" element={<UpdateProductPage />} />
         <Route path="/products/products/:id" element={<ViewProductPage />} />
+        <Route path="/products/categories/new" element={<AddCategoryPage />} />
+        <Route path="/products/categories/:id/edit" element={<UpdateCategoryPage />} />
+        <Route path="/products/categories/:id" element={<ViewCategoryPage />} />
         <Route path="/products/categories" element={<CategoryPage />} />
         <Route path="/users/users" element={<UsersPage />} />
         <Route path="/users/users/new" element={<AddUserPage />} />
