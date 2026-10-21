@@ -3,7 +3,7 @@ import { Download } from 'lucide-react'
 import { toast } from 'react-toastify'
 import { downloadExcel } from '../utils/exportExcel.js'
 
-function ExportButton({ filename, sheetName, columns, rows, loadRows, disabled = false }) {
+function ExportButton({ filename, sheetName, columns, rows, loadRows, disabled = false, label = 'Export' }) {
   const [pending, setPending] = useState(false)
 
   async function handleClick() {
@@ -32,7 +32,7 @@ function ExportButton({ filename, sheetName, columns, rows, loadRows, disabled =
       className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-sm font-medium text-slate-700 disabled:cursor-not-allowed disabled:opacity-60"
     >
       <Download size={15} />
-      {pending ? 'Exporting' : 'Export'}
+      {pending ? 'Exporting' : label}
     </button>
   )
 }

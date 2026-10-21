@@ -9,6 +9,10 @@ import AddCategoryPage from './pages/ProductsInventory/categories/AddCategoryPag
 import CategoryPage from './pages/ProductsInventory/categories/CategoryPage.jsx'
 import UpdateCategoryPage from './pages/ProductsInventory/categories/UpdateCategoryPage.jsx'
 import ViewCategoryPage from './pages/ProductsInventory/categories/ViewCategoryPage.jsx'
+import StockMovementsPage from './pages/ProductsInventory/movements/StockMovementsPage.jsx'
+import AdjustmentPage from './pages/ProductsInventory/adjustments/AdjustmentPage.jsx'
+import DamagePage from './pages/ProductsInventory/damage/DamagePage.jsx'
+import TransferPage from './pages/ProductsInventory/transfers/TransferPage.jsx'
 import ProductPage from './pages/ProductsInventory/products/ProductPage.jsx'
 import UpdateProductPage from './pages/ProductsInventory/products/UpdateProductPage.jsx'
 import ViewProductPage from './pages/ProductsInventory/products/ViewProductPage.jsx'
@@ -113,6 +117,10 @@ function App() {
         <Route path="/products/categories/:id/edit" element={<UpdateCategoryPage />} />
         <Route path="/products/categories/:id" element={<ViewCategoryPage />} />
         <Route path="/products/categories" element={<CategoryPage />} />
+        <Route path="/products/movements" element={<StockMovementsPage />} />
+        <Route path="/products/transfers" element={<TransferPage />} />
+        <Route path="/products/adjustments" element={<AdjustmentPage />} />
+        <Route path="/products/damage" element={<DamagePage />} />
         <Route path="/users/users" element={<UsersPage />} />
         <Route path="/users/users/new" element={<AddUserPage />} />
         <Route path="/users/users/:id/edit" element={<UpdateUserPage />} />
