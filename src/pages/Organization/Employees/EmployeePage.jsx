@@ -276,8 +276,8 @@ function EmployeePage() {
             onClick={() => openTab(item)}
             className={
               tab === item
-                ? 'rounded-lg bg-[#e8f1ff] px-3 py-1.5 text-sm font-medium text-[#2f6fed]'
-                : 'rounded-lg px-3 py-1.5 text-sm text-slate-500 hover:bg-white'
+                ? 'cursor-pointer rounded-lg bg-[#e8f1ff] px-3 py-1.5 text-sm font-medium text-[#2f6fed] shadow-sm'
+                : 'cursor-pointer rounded-lg bg-white px-3 py-1.5 text-sm text-slate-500 shadow-sm hover:bg-white'
             }
           >
             {item}

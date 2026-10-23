@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom'
 import { Link, useNavigate } from 'react-router-dom'
 import ExportButton from '../../../components/ExportButton.jsx'
 import GlobalTable from '../../../components/GlobalTable.jsx'
+import SecurityTabs from '../SecurityTabs.jsx'
 import { getRoles } from '../../../api/roles.api.js'
 import { useRoleList } from '../../../queries/roles/roles.queries.js'
 import { fetchAllPages } from '../../../utils/exportExcel.js'
@@ -238,6 +239,8 @@ function RolesPage() {
           </Button>
         </div>
       </div>
+
+      <SecurityTabs />
 
       <section className="rounded-2xl border border-slate-200/80 bg-white shadow-sm">
         <div className="border-b border-slate-100 px-5 py-4">

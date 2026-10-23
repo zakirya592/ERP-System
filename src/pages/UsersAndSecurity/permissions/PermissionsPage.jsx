@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Check, Minus, Search } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import ExportButton from '../../../components/ExportButton.jsx'
+import SecurityTabs from '../SecurityTabs.jsx'
 import { getPermissions } from '../../../api/permissions.api.js'
 import { usePermissions } from '../../../queries/permissions/permissions.queries.js'
 import { fetchAllPages } from '../../../utils/exportExcel.js'
@@ -112,6 +113,8 @@ function PermissionsPage() {
           loadRows={() => fetchAllPages(getPermissions, { search: debouncedSearch })}
         />
       </div>
+
+      <SecurityTabs />
 
       <section className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm">
         <div className="flex flex-col gap-3 border-b border-slate-100 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">

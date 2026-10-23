@@ -4,6 +4,7 @@ import { Eye, Pencil, Plus, Search } from 'lucide-react'
 import { Link, useNavigate } from 'react-router-dom'
 import ExportButton from '../../../components/ExportButton.jsx'
 import GlobalTable from '../../../components/GlobalTable.jsx'
+import SecurityTabs from '../SecurityTabs.jsx'
 import { getUsers } from '../../../api/users.api.js'
 import { useUsers } from '../../../queries/users/users.queries.js'
 import { fetchAllPages } from '../../../utils/exportExcel.js'
@@ -154,6 +155,8 @@ function UsersPage() {
           </Button>
         </div>
       </div>
+
+      <SecurityTabs />
 
       <section className="rounded-2xl border border-slate-200/80 bg-white shadow-sm">
         <div className="flex flex-col gap-3 border-b border-slate-100 px-5 py-4 sm:flex-row sm:items-end sm:justify-between">
