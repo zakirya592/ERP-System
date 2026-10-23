@@ -1,4 +1,4 @@
-import { Plus } from 'lucide-react'
+import { Plus, Trash2 } from 'lucide-react'
 import {
   agreementTypes,
   allocationTotals,
@@ -27,9 +27,9 @@ export function PartnershipForm({ form, errors, update, setPartners, branchOptio
   const partnerOptions = ownerIdOptions(owners, form.partners)
 
   function updatePartner(id, key, value) {
-    setPartners(
-      form.partners.map((row) => {
-        if (row.id !== id) return row
+    setPartners((partners) =>
+      partners.map((row) => {
+        if (String(row.id) !== String(id)) return row
         if (key === 'ownerId') {
           const owner = partnerOptions.find((option) => option.value === value)
           return { ...row, ownerId: value, name: owner?.label || '' }
@@ -37,6 +37,13 @@ export function PartnershipForm({ form, errors, update, setPartners, branchOptio
         return { ...row, [key]: value }
       }),
     )
+  }
+
+  function removePartner(id) {
+    setPartners((partners) => {
+      if (partners.length <= 1) return partners
+      return partners.filter((row) => String(row.id) !== String(id))
+    })
   }
 
   return (
@@ -78,7 +85,7 @@ export function PartnershipForm({ form, errors, update, setPartners, branchOptio
           <h2 className="text-sm font-semibold text-slate-900">Partner contribution and allocation</h2>
           <button
             type="button"
-            onClick={() => setPartners([...form.partners, emptyPartner()])}
+            onClick={() => setPartners((partners) => [...partners, emptyPartner()])}
             className="inline-flex cursor-pointer items-center gap-1.5 text-sm font-medium text-[#2f6fed]"
           >
             <Plus size={15} />
@@ -98,22 +105,38 @@ export function PartnershipForm({ form, errors, update, setPartners, branchOptio
               </tr>
             </thead>
             <tbody>
-              {form.partners.map((row) => (
+              {(form.partners || []).map((row) => (
                 <tr key={row.id} className="border-t border-slate-100">
                   <td className="px-2 py-2">
-                    <select
-                      aria-label="Partner"
-                      value={row.ownerId}
-                      onChange={(event) => updatePartner(row.id, 'ownerId', event.target.value)}
-                      className={`w-full rounded-lg border bg-white px-2 py-2 text-sm outline-none focus:border-sky-400 ${row.ownerId ? 'text-slate-800' : 'text-slate-400'} border-slate-200`}
-                    >
-                      <option value="">Select partner</option>
-                      {partnerOptions.map((person) => (
-                        <option key={person.value} value={person.value}>
-                          {person.label}
-                        </option>
-                      ))}
-                    </select>
+                    <div className="flex items-center gap-1.5">
+                      <select
+                        aria-label="Partner"
+                        value={row.ownerId}
+                        onChange={(event) => updatePartner(row.id, 'ownerId', event.target.value)}
+                        className={`min-w-0 flex-1 rounded-lg border bg-white px-2 py-2 text-sm outline-none focus:border-sky-400 ${row.ownerId ? 'text-slate-800' : 'text-slate-400'} border-slate-200`}
+                      >
+                        <option value="">Select partner</option>
+                        {partnerOptions.map((person) => (
+                          <option key={person.value} value={person.value}>
+                            {person.label}
+                          </option>
+                        ))}
+                      </select>
+                      {(form.partners || []).length > 1 ? (
+                        <button
+                          type="button"
+                          aria-label={`Remove ${row.name || 'partner'}`}
+                          onClick={(event) => {
+                            event.preventDefault()
+                            event.stopPropagation()
+                            removePartner(row.id)
+                          }}
+                          className="inline-flex shrink-0 cursor-pointer items-center justify-center rounded-lg p-1.5 text-slate-400 hover:bg-rose-50 hover:text-rose-500"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      ) : null}
+                    </div>
                   </td>
                   {['contribution', 'ownership', 'profitShare', 'lossShare'].map((key) => (
                     <td key={key} className="px-2 py-2">

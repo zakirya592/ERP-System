@@ -78,6 +78,14 @@ function AddPartnershipPage() {
     setErrors((current) => ({ ...current, [key]: '' }))
   }
 
+  function setPartners(next) {
+    setForm((current) => ({
+      ...current,
+      partners: typeof next === 'function' ? next(current.partners || []) : next,
+    }))
+    setErrors((current) => ({ ...current, partners: '' }))
+  }
+
   function save(submit) {
     const nextErrors = validate(form, submit)
     setErrors(nextErrors)
@@ -137,7 +145,7 @@ function AddPartnershipPage() {
             form={form}
             errors={errors}
             update={update}
-            setPartners={(partners) => update('partners', partners)}
+            setPartners={setPartners}
             branchOptions={withOption(branchOptions, form.branch)}
             owners={owners}
           />

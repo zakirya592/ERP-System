@@ -186,7 +186,7 @@ export function summaryStats(summary) {
 
 export function emptyPartner() {
   return {
-    id: `partner-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+    id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `partner-${Date.now()}-${Math.random().toString(16).slice(2)}`,
     ownerId: '',
     name: '',
     contribution: '',

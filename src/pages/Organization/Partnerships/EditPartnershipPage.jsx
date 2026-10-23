@@ -92,6 +92,14 @@ function EditPartnershipForm({ record }) {
     setErrors((current) => ({ ...current, [key]: '' }))
   }
 
+  function setPartners(next) {
+    setForm((current) => ({
+      ...current,
+      partners: typeof next === 'function' ? next(current.partners || []) : next,
+    }))
+    setErrors((current) => ({ ...current, partners: '' }))
+  }
+
   function save(event) {
     event.preventDefault()
     const nextErrors = validate(form)
@@ -146,7 +154,7 @@ function EditPartnershipForm({ record }) {
             form={form}
             errors={errors}
             update={update}
-            setPartners={(partners) => update('partners', partners)}
+            setPartners={setPartners}
             branchOptions={branchOptions}
             owners={owners}
           />
