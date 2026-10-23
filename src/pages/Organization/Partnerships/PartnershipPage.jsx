@@ -1,29 +1,34 @@
-import { useState } from 'react'
-import { Plus, Search } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { Eye, Pencil, Plus, Search } from 'lucide-react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { toast } from 'react-toastify'
 import ExportButton from '../../../components/ExportButton.jsx'
 import GlobalTable from '../../../components/GlobalTable.jsx'
+import { getPartnerships } from '../../../api/partnerships.api.js'
+import { useBranches } from '../../../queries/branches/branches.queries.js'
+import { usePartnership, usePartnerships, useUpdatePartnershipStatus } from '../../../queries/partnerships/partnerships.queries.js'
+import { fetchAllPages } from '../../../utils/exportExcel.js'
 import {
-  allocationTotals,
-  displayValue,
-  mergePartnershipRegister,
+  display,
+  mapPartnership,
   partnershipAccess,
   partnershipRule,
-  partnershipStats,
-  partnerships as seedPartnerships,
-  useAddedPartnerships,
-  usePartnershipOverrides,
+  partnershipStatuses,
+  statusClassName,
+  summaryStats,
 } from './partnershipRecords.js'
 import { Fact, OrganizationTabs, Stat, StatusPill } from './partnershipUi.jsx'
 
-const pageSize = 5
+const limit = 20
+
+const statusOptions = [{ label: 'All statuses', value: '' }, ...partnershipStatuses]
 
 function partnershipColumns(onView, onEdit, selectedId) {
   return [
     {
       key: 'code',
       label: 'CODE',
-      renderCell: (item) => <span className="font-mono text-[12px] text-slate-400">{item.code}</span>,
+      renderCell: (item) => <span className="font-mono text-[12px] text-slate-400">{display(item.code)}</span>,
     },
     {
       key: 'name',
@@ -31,19 +36,19 @@ function partnershipColumns(onView, onEdit, selectedId) {
       isRowHeader: true,
       renderCell: (item) => (
         <button type="button" onClick={() => onView(item)} className={`text-[13px] font-medium ${selectedId === item.id ? 'text-[#2f6fed]' : 'text-slate-800'}`}>
-          {item.name}
+          {display(item.name)}
         </button>
       ),
     },
     {
       key: 'agreementType',
       label: 'AGREEMENT TYPE',
-      renderCell: (item) => <span className="text-[13px] text-slate-600">{item.agreementType}</span>,
+      renderCell: (item) => <span className="text-[13px] text-slate-600">{display(item.agreementType)}</span>,
     },
     {
       key: 'startDate',
       label: 'START DATE',
-      renderCell: (item) => <span className="text-[13px] text-slate-600">{item.startDate}</span>,
+      renderCell: (item) => <span className="text-[13px] text-slate-600">{display(item.startDate)}</span>,
     },
     {
       key: 'status',
@@ -56,12 +61,22 @@ function partnershipColumns(onView, onEdit, selectedId) {
       className: 'text-right',
       cellClassName: 'text-right',
       renderCell: (item) => (
-        <div className="flex justify-end gap-3">
-          <button type="button" onClick={() => onView(item)} className="text-[13px] font-medium text-[#2f6fed]">
-            View
+        <div className="flex justify-end gap-1">
+          <button
+            type="button"
+            aria-label={`View ${item.name}`}
+            onClick={() => onView(item)}
+            className="inline-flex cursor-pointer items-center justify-center rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 hover:text-[#2563eb]"
+          >
+            <Eye size={16} />
           </button>
-          <button type="button" onClick={() => onEdit(item)} className="text-[13px] font-medium text-[#2f6fed]">
-            Edit
+          <button
+            type="button"
+            aria-label={`Edit ${item.name}`}
+            onClick={() => onEdit(item)}
+            className="inline-flex cursor-pointer items-center justify-center rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 hover:text-[#2563eb]"
+          >
+            <Pencil size={16} />
           </button>
         </div>
       ),
@@ -74,58 +89,66 @@ const allocationColumns = [
     key: 'name',
     label: 'PARTNER',
     isRowHeader: true,
-    renderCell: (item) => <span className={`text-[13px] ${item.id === 'total' ? 'font-semibold text-slate-900' : 'font-medium text-slate-800'}`}>{item.name}</span>,
+    renderCell: (item) => <span className={`text-[13px] ${item.id === 'total' ? 'font-semibold text-slate-900' : 'font-medium text-slate-800'}`}>{display(item.name)}</span>,
   },
   {
     key: 'contribution',
     label: 'CONTRIBUTION',
-    renderCell: (item) => <span className="text-[13px] text-slate-600">{item.contribution}</span>,
+    renderCell: (item) => <span className="text-[13px] text-slate-600">{display(item.contribution)}</span>,
   },
   {
     key: 'ownership',
     label: 'OWNERSHIP',
-    renderCell: (item) => <span className="text-[13px] text-slate-600">{item.ownership}</span>,
+    renderCell: (item) => <span className="text-[13px] text-slate-600">{display(item.ownership)}</span>,
   },
   {
     key: 'profitShare',
     label: 'PROFIT SHARE',
-    renderCell: (item) => <span className="text-[13px] text-slate-600">{item.profitShare}</span>,
+    renderCell: (item) => <span className="text-[13px] text-slate-600">{display(item.profitShare)}</span>,
   },
   {
     key: 'lossShare',
     label: 'LOSS SHARE',
-    renderCell: (item) => <span className="text-[13px] text-slate-600">{item.lossShare}</span>,
+    renderCell: (item) => <span className="text-[13px] text-slate-600">{display(item.lossShare)}</span>,
   },
 ]
 
 function PartnershipPage() {
   const navigate = useNavigate()
   const location = useLocation()
-  const added = useAddedPartnerships()
-  const overrides = usePartnershipOverrides()
-  const register = mergePartnershipRegister(added, seedPartnerships, overrides)
   const [query, setQuery] = useState('')
+  const [debouncedSearch, setDebouncedSearch] = useState('')
   const [branch, setBranch] = useState('')
   const [status, setStatus] = useState('')
   const [page, setPage] = useState(1)
-  const [selectedId, setSelectedId] = useState(location.state?.selectedId || seedPartnerships[0].id)
+  const [selectedId, setSelectedId] = useState(location.state?.selectedId || null)
 
-  const branchOptions = [...new Set(register.map((item) => item.branch).filter(Boolean))]
-  const needle = query.trim().toLowerCase()
-  const filtered = register.filter((item) => {
-    const matchesQuery = !needle || item.name.toLowerCase().includes(needle) || item.code.toLowerCase().includes(needle)
-    const matchesBranch = !branch || item.branch === branch
-    const matchesStatus = !status || item.status === status
-    return matchesQuery && matchesBranch && matchesStatus
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(query.trim()), 300)
+    return () => clearTimeout(timer)
+  }, [query])
+
+  const partnershipsQuery = usePartnerships({
+    page,
+    limit,
+    search: debouncedSearch,
+    status,
+    branchId: branch,
   })
-  const start = (page - 1) * pageSize
-  const pageRows = filtered.slice(start, start + pageSize)
-  const selected = pageRows.find((item) => item.id === selectedId) || filtered.find((item) => item.id === selectedId) || pageRows[0] || null
-  const totals = selected ? allocationTotals(selected.partners) : null
-  const allocations = selected
-    ? [...selected.partners, { id: 'total', name: 'Total', contribution: totals.contribution, ownership: totals.ownership, profitShare: totals.profitShare, lossShare: totals.lossShare }]
-    : []
-  const stats = partnershipStats(register)
+  const updateStatus = useUpdatePartnershipStatus()
+  const branchesQuery = useBranches({ page: 1, limit: 100, search: '', status: 'active' })
+  const pageRows = (partnershipsQuery.data?.data || []).map(mapPartnership)
+  const total = partnershipsQuery.data?.meta?.total ?? pageRows.length
+  const stats = summaryStats(partnershipsQuery.data?.meta?.summary)
+  const selected = pageRows.find((item) => item.id === selectedId) || pageRows[0] || null
+  const detailQuery = usePartnership(selected?.id)
+  const detail = detailQuery.data?.data ? mapPartnership(detailQuery.data.data) : null
+  const profile = detail || selected
+  const allocations = profile?.allocations || []
+  const branchOptions = (branchesQuery.data?.data || []).map((item) => ({
+    id: item._id,
+    name: item.name,
+  }))
 
   function viewPartnership(item) {
     navigate(`/organization/partnerships/${item.id}`)
@@ -133,6 +156,22 @@ function PartnershipPage() {
 
   function editPartnership(item) {
     navigate(`/organization/partnerships/${item.id}/edit`)
+  }
+
+  function changeStatus(nextStatus) {
+    if (!profile?.id || profile.statusValue === nextStatus || updateStatus.isPending) return
+    updateStatus.mutate(
+      { id: profile.id, status: nextStatus },
+      {
+        onSuccess: (data) => {
+          const label = partnershipStatuses.find((option) => option.value === nextStatus)?.label || nextStatus
+          toast.success(data?.message || `${profile.name || 'Partnership'} is now ${label}.`)
+        },
+        onError: (error) => {
+          toast.error(error.response?.data?.message || 'Could not update the partnership status.')
+        },
+      },
+    )
   }
 
   function clearFilters() {
@@ -165,7 +204,10 @@ function PartnershipPage() {
             filename="partnerships"
             sheetName="Partnerships"
             columns={partnershipColumns(viewPartnership, editPartnership, selected?.id)}
-            rows={filtered}
+            loadRows={async () => {
+              const rows = await fetchAllPages(getPartnerships, { search: debouncedSearch, status, branchId: branch })
+              return rows.map(mapPartnership)
+            }}
           />
           <button
             type="button"
@@ -190,13 +232,13 @@ function PartnershipPage() {
       <div className="flex flex-col gap-2 lg:flex-row lg:items-center">
         <label className="relative min-w-0 flex-1">
           <Search size={15} className="absolute top-1/2 left-3 -translate-y-1/2 text-slate-400" />
-          <input
-            value={query}
-            onChange={(event) => {
-              setQuery(event.target.value)
-              setPage(1)
-            }}
-            placeholder="Search name or code"
+              <input
+                value={query}
+                onChange={(event) => {
+                  setQuery(event.target.value)
+                  setPage(1)
+                }}
+                placeholder="Search name or code"
             className="w-full rounded-lg border border-slate-200 bg-white py-2 pr-3 pl-9 text-sm outline-none focus:border-sky-400"
           />
         </label>
@@ -211,8 +253,8 @@ function PartnershipPage() {
         >
           <option value="">All branches</option>
           {branchOptions.map((item) => (
-            <option key={item} value={item}>
-              {item}
+            <option key={item.id} value={item.id}>
+              {item.name}
             </option>
           ))}
         </select>
@@ -225,11 +267,11 @@ function PartnershipPage() {
           }}
           className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:border-sky-400"
         >
-          <option value="">All statuses</option>
-          <option value="Active">Active</option>
-          <option value="Draft">Draft</option>
-          <option value="Review due">Review due</option>
-          <option value="Inactive">Inactive</option>
+          {statusOptions.map((option) => (
+            <option key={option.label} value={option.value}>
+              {option.label}
+            </option>
+          ))}
         </select>
         <button type="button" onClick={clearFilters} className="cursor-pointer px-2 py-2 text-sm font-medium text-[#2f6fed] lg:ml-auto">
           Clear filters
@@ -247,15 +289,21 @@ function PartnershipPage() {
               columns={partnershipColumns(viewPartnership, editPartnership, selected?.id)}
               data={pageRows}
               pagination
-              rowsPerPage={pageSize}
+              rowsPerPage={limit}
               page={page}
-              totalCount={filtered.length}
+              totalCount={total}
               onPageChange={setPage}
               className="h-auto! max-h-none!"
               contentClassName="min-w-full"
-              emptyContent="No partnerships match these filters."
+              emptyContent={
+                partnershipsQuery.isError
+                  ? partnershipsQuery.error.response?.data?.message || 'Could not load partnerships.'
+                  : partnershipsQuery.isLoading
+                    ? 'Loading partnerships...'
+                    : 'No partnerships match these filters.'
+              }
               summary={
-                filtered.length
+                total
                   ? `Showing ${pageRows.length} ${pageRows.length === 1 ? 'record' : 'records'}${selected ? ' · 1 selected' : ''}`
                   : undefined
               }
@@ -279,29 +327,44 @@ function PartnershipPage() {
               data={allocations}
               className="h-auto! max-h-none!"
               contentClassName="min-w-full"
-              emptyContent={selected ? 'This partnership has no partners.' : 'Select a partnership to see allocations.'}
-              summary={allocations.length ? `Showing ${selected?.partners.length || 0} records · 1 selected` : undefined}
+              emptyContent={
+                !selected
+                  ? 'Select a partnership to see allocations.'
+                  : detailQuery.isLoading
+                    ? 'Loading allocations...'
+                    : detailQuery.isError
+                      ? detailQuery.error.response?.data?.message || 'Could not load allocations.'
+                      : 'This partnership has no partners.'
+              }
+              summary={
+                profile?.partners?.length
+                  ? `Showing ${profile.partners.length} ${profile.partners.length === 1 ? 'record' : 'records'}`
+                  : undefined
+              }
             />
           </section>
         </div>
 
-        {selected ? <PartnershipAside record={selected} /> : null}
+        {profile ? (
+          <PartnershipAside record={profile} statusPending={updateStatus.isPending} onStatusChange={changeStatus} />
+        ) : null}
       </div>
     </div>
   )
 }
 
-export function PartnershipAside({ record }) {
+export function PartnershipAside({ record, statusPending = false, onStatusChange }) {
   return (
     <aside className="rounded-2xl border border-slate-200/80 bg-white px-5 py-5 shadow-sm xl:sticky xl:top-4">
-      <h2 className="text-[18px] font-semibold text-slate-900">{record.name}</h2>
-      <p className="mt-1 text-[13px] text-slate-400">{record.code}</p>
+      <h2 className="text-[18px] font-semibold text-slate-900">{display(record.name)}</h2>
+      <p className="mt-1 text-[13px] text-slate-400">{display(record.code)}</p>
       <div className="mt-3">
         <StatusPill status={record.status} />
       </div>
+      {onStatusChange ? <StatusSwitcher value={record.statusValue} pending={statusPending} onChange={onStatusChange} /> : null}
       <p className="mt-4 text-[13px] leading-5 text-slate-500">{partnershipRule}</p>
       <dl className="mt-5 space-y-3.5">
-        <Fact label="Governed by" value={displayValue(record.governedBy || record.managingPartner, '—')} />
+        <Fact label="Governed by" value={display(record.governedBy || record.managingPartner)} />
         <Fact label="Created on" value={record.createdOn} />
         <Fact label="Updated" value={record.updatedOn} />
         <Fact label="Record status" value={record.status} />
@@ -311,6 +374,32 @@ export function PartnershipAside({ record }) {
         <p className="mt-1 text-[13px] leading-5 text-slate-600">{partnershipAccess}</p>
       </div>
     </aside>
+  )
+}
+
+function StatusSwitcher({ value, pending, onChange }) {
+  return (
+    <div className="mt-4">
+      <p className="text-[12px] font-medium text-slate-400">Partnership status</p>
+      <div className="mt-2 grid grid-cols-2 gap-1 rounded-xl bg-slate-100 p-1">
+        {partnershipStatuses.map((option) => {
+          const selected = value === option.value
+          return (
+            <button
+              key={option.value}
+              type="button"
+              disabled={pending}
+              onClick={() => onChange(option.value)}
+              className={`cursor-pointer rounded-lg px-1 py-1.5 text-[12px] font-medium disabled:cursor-not-allowed disabled:opacity-60 ${
+                selected ? `${statusClassName(option.label)} shadow-sm` : 'text-slate-500 hover:bg-white'
+              }`}
+            >
+              {option.label}
+            </button>
+          )
+        })}
+      </div>
+    </div>
   )
 }
 

@@ -1,38 +1,42 @@
-import { useRef } from 'react'
 import { Plus } from 'lucide-react'
 import {
   agreementTypes,
   allocationTotals,
-  branches,
-  distributionFrequencies,
   emptyPartner,
   formatMoney,
   formatShare,
+  ownerIdOptions,
+  ownerNameOptions,
   parseMoney,
   partnershipRule,
-  people,
+  partnershipStatuses,
+  settlementFrequencies,
+  withOption,
 } from './partnershipRecords.js'
 import { Field, FormCard, SelectField } from './partnershipUi.jsx'
 
-export function PartnershipForm({ form, errors, update, setPartners }) {
-  const fileRef = useRef(null)
+export function PartnershipForm({ form, errors, update, setPartners, branchOptions, owners }) {
   const totals = allocationTotals(form.partners)
+  const people = ownerNameOptions(owners, [
+    form.managingPartner,
+    form.reviewOwner,
+    form.profitOwner,
+    form.lossOwner,
+    form.approvalAuthority,
+  ])
+  const partnerOptions = ownerIdOptions(owners, form.partners)
 
   function updatePartner(id, key, value) {
-    setPartners(form.partners.map((row) => (row.id === id ? { ...row, [key]: value } : row)))
-  }
-
-  function onFile(file) {
-    if (!file) {
-      update('fileName', '')
-      return
-    }
-    const allowed = ['application/pdf', 'image/jpeg', 'image/png']
-    if (file.type && !allowed.includes(file.type)) {
-      update('fileName', form.fileName)
-      return
-    }
-    update('fileName', file.name)
+    setPartners(
+      form.partners.map((row) => {
+        if (row.id !== id) return row
+        if (key === 'ownerId') {
+          const owner = partnerOptions.find((option) => option.value === value)
+          return { ...row, ownerId: value, name: owner?.label || '' }
+        }
+        return { ...row, [key]: value }
+      }),
+    )
   }
 
   return (
@@ -40,23 +44,25 @@ export function PartnershipForm({ form, errors, update, setPartners }) {
       <FormCard title="Agreement information">
         <Field label="Partnership name" required value={form.name} error={errors.name} placeholder="Enter partnership name" onChange={(value) => update('name', value)} />
         <Field label="Agreement code" required value={form.code} error={errors.code} placeholder="Enter agreement code" onChange={(value) => update('code', value)} />
-        <SelectField label="Agreement type" required value={form.agreementType} error={errors.agreementType} placeholder="Select agreement type" options={agreementTypes} onChange={(value) => update('agreementType', value)} />
-        <SelectField label="Responsible branch" required value={form.branch} error={errors.branch} placeholder="Select branch" options={branches} onChange={(value) => update('branch', value)} />
+        <SelectField label="Agreement type" required value={form.agreementType} error={errors.agreementType} placeholder="Select agreement type" options={withOption(agreementTypes, form.agreementType)} onChange={(value) => update('agreementType', value)} />
+        <SelectField label="Responsible branch" required value={form.branch} error={errors.branch} placeholder="Select branch" options={branchOptions} onChange={(value) => update('branch', value)} />
+        <SelectField label="Status" required value={form.status} error={errors.status} options={withOption(partnershipStatuses, form.status)} onChange={(value) => update('status', value)} />
       </FormCard>
 
       <FormCard title="Term and financial settings">
         <Field label="Effective date" required type="date" value={form.effectiveDate} error={errors.effectiveDate} onChange={(value) => update('effectiveDate', value)} />
-        <Field label="End / review date" type="date" value={form.endDate} onChange={(value) => update('endDate', value)} />
+        <Field label="End / review date" type="date" value={form.endDate} error={errors.endDate} onChange={(value) => update('endDate', value)} />
         <Field
           label="Capital commitment"
           value={form.capitalCommitment}
+          error={errors.capitalCommitment}
           placeholder="PKR 0"
           onChange={(value) => update('capitalCommitment', value)}
           onBlur={() => {
             if (form.capitalCommitment.trim()) update('capitalCommitment', formatMoney(parseMoney(form.capitalCommitment)))
           }}
         />
-        <SelectField label="Settlement frequency" value={form.distributionFrequency} placeholder="Select settlement frequency" options={distributionFrequencies} onChange={(value) => update('distributionFrequency', value)} />
+        <SelectField label="Settlement frequency" value={form.distributionFrequency} error={errors.distributionFrequency} placeholder="Select settlement frequency" options={withOption(settlementFrequencies, form.distributionFrequency)} onChange={(value) => update('distributionFrequency', value)} />
       </FormCard>
 
       <FormCard title="Participants and governance">
@@ -97,14 +103,14 @@ export function PartnershipForm({ form, errors, update, setPartners }) {
                   <td className="px-2 py-2">
                     <select
                       aria-label="Partner"
-                      value={row.name}
-                      onChange={(event) => updatePartner(row.id, 'name', event.target.value)}
-                      className={`w-full rounded-lg border bg-white px-2 py-2 text-sm outline-none focus:border-sky-400 ${row.name ? 'text-slate-800' : 'text-slate-400'} border-slate-200`}
+                      value={row.ownerId}
+                      onChange={(event) => updatePartner(row.id, 'ownerId', event.target.value)}
+                      className={`w-full rounded-lg border bg-white px-2 py-2 text-sm outline-none focus:border-sky-400 ${row.ownerId ? 'text-slate-800' : 'text-slate-400'} border-slate-200`}
                     >
                       <option value="">Select partner</option>
-                      {people.map((person) => (
-                        <option key={person} value={person}>
-                          {person}
+                      {partnerOptions.map((person) => (
+                        <option key={person.value} value={person.value}>
+                          {person.label}
                         </option>
                       ))}
                     </select>
@@ -118,7 +124,7 @@ export function PartnershipForm({ form, errors, update, setPartners }) {
                         onChange={(event) => updatePartner(row.id, key, event.target.value)}
                         onBlur={() => {
                           if (key === 'contribution' && row.contribution) {
-                            updatePartner(row.id, key, `PKR ${parseMoney(row.contribution).toLocaleString('en-US')}`)
+                            updatePartner(row.id, key, formatMoney(parseMoney(row.contribution)))
                           }
                           if (key !== 'contribution' && row[key]) updatePartner(row.id, key, formatShare(row[key]))
                         }}
@@ -140,28 +146,7 @@ export function PartnershipForm({ form, errors, update, setPartners }) {
         </div>
       </section>
 
-      <FormCard title="Documents and notes">
-        <div>
-          <span className="text-sm text-slate-700">
-            Signed partnership agreement <span className="text-rose-500">*</span>
-          </span>
-          <button
-            type="button"
-            onClick={() => fileRef.current?.click()}
-            className="mt-1.5 flex w-full cursor-pointer items-center rounded-lg border border-dashed border-slate-300 px-3 py-2 text-left text-sm text-slate-500"
-          >
-            {form.fileName || 'Upload document'}
-          </button>
-          <input
-            ref={fileRef}
-            type="file"
-            accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png"
-            className="hidden"
-            onChange={(event) => onFile(event.target.files?.[0])}
-          />
-          {errors.fileName && <p className="mt-1 text-xs text-rose-500">{errors.fileName}</p>}
-        </div>
-        <Field label="Document reference" value={form.documentReference} placeholder="Enter document reference" onChange={(value) => update('documentReference', value)} />
+      <FormCard title="Notes">
         <label className="block md:col-span-2">
           <span className="text-sm text-slate-700">Notes</span>
           <textarea
@@ -171,6 +156,7 @@ export function PartnershipForm({ form, errors, update, setPartners }) {
             onChange={(event) => update('notes', event.target.value)}
             className="mt-1.5 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none placeholder:text-slate-400 focus:border-sky-400"
           />
+          {errors.notes && <p className="mt-1 text-xs text-rose-500">{errors.notes}</p>}
         </label>
       </FormCard>
       <p className="text-xs text-slate-400">{partnershipRule}</p>

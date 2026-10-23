@@ -1,5 +1,6 @@
 import { ChevronDown } from 'lucide-react'
 import { useLocation, useNavigate } from 'react-router-dom'
+import { statusClassName } from './partnershipRecords.js'
 
 export const organizationTabs = [
   { label: 'Branches', to: '/organization/branches' },
@@ -9,13 +10,6 @@ export const organizationTabs = [
   { label: 'Owners', to: '/organization/owners' },
   { label: 'Partnerships', to: '/organization/partnerships' },
 ]
-
-const statusClass = {
-  Active: 'bg-[#e7f8ee] text-[#1f9d57]',
-  Draft: 'bg-slate-100 text-slate-500',
-  'Review due': 'bg-amber-50 text-amber-600',
-  Inactive: 'bg-[#eef1f4] text-[#8b95a5]',
-}
 
 export function OrganizationTabs() {
   const navigate = useNavigate()
@@ -46,7 +40,7 @@ export function OrganizationTabs() {
 
 export function StatusPill({ status }) {
   return (
-    <span className={`inline-flex rounded-full px-2.5 py-0.5 text-[12px] font-medium ${statusClass[status] || 'bg-slate-100 text-slate-500'}`}>
+    <span className={`inline-flex rounded-full px-2.5 py-0.5 text-[12px] font-medium ${statusClassName(status)}`}>
       {status || '—'}
     </span>
   )
@@ -106,11 +100,16 @@ export function SelectField({ label, required = false, value, error, placeholder
           } ${value ? 'text-slate-800' : 'text-slate-400'}`}
         >
           {placeholder && <option value="">{placeholder}</option>}
-          {options.map((option) => (
-            <option key={option} value={option}>
-              {option}
-            </option>
-          ))}
+          {options.map((option) => {
+            const value = typeof option === 'string' ? option : option.value
+            const label = typeof option === 'string' ? option : option.label
+            const key = typeof option === 'string' ? option : option.key || option.value
+            return (
+              <option key={key} value={value}>
+                {label}
+              </option>
+            )
+          })}
         </select>
         <ChevronDown size={16} className="pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 text-slate-400" />
       </span>

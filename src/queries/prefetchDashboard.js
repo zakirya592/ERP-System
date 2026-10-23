@@ -6,6 +6,7 @@ import { getProducts } from '../api/products.api'
 import { getQuantityUnits } from '../api/quantityUnits.api'
 import { getEmployees } from '../api/employees.api'
 import { getOwners } from '../api/owners.api'
+import { getPartnerships } from '../api/partnerships.api'
 import { getShops } from '../api/shops.api'
 import { getWarehouses } from '../api/warehouses.api'
 import { getPermissions } from '../api/permissions.api'
@@ -22,6 +23,7 @@ export const dashboardListParams = {
   branches: { page: 1, limit: 20, search: '', status: '' },
   employees: { page: 1, limit: 20, search: '', status: '' },
   owners: { page: 1, limit: 20, search: '', status: '', branchId: '' },
+  partnerships: { page: 1, limit: 20, search: '', status: '', branchId: '' },
   shops: { page: 1, limit: 20, search: '', status: '', branchId: '' },
   warehouses: { page: 1, limit: 20, search: '', status: '', branchId: '' },
   currencies: { page: 1, limit: 20, search: '', status: '' },
@@ -60,6 +62,11 @@ export const dashboardListQueries = [
   {
     queryKey: queryKeys.owners.list(dashboardListParams.owners),
     queryFn: () => getOwners(dashboardListParams.owners),
+    staleTime,
+  },
+  {
+    queryKey: queryKeys.partnerships.list(dashboardListParams.partnerships),
+    queryFn: () => getPartnerships(dashboardListParams.partnerships),
     staleTime,
   },
   {

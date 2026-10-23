@@ -2,34 +2,29 @@ import { useState } from 'react'
 import { ArrowLeft } from 'lucide-react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { toast } from 'react-toastify'
+import { useBranches } from '../../../queries/branches/branches.queries.js'
+import { useOwners } from '../../../queries/owners/owners.queries.js'
+import { usePartnership, useUpdatePartnership } from '../../../queries/partnerships/partnerships.queries.js'
 import { PartnershipForm } from './PartnershipForm.jsx'
 import {
   allocationsBalanced,
-  formatDisplayDate,
-  formatMoney,
-  formatShare,
-  mergePartnershipRegister,
-  parseMoney,
+  applyPartnershipErrors,
+  branchNameOf,
+  display,
+  formFromPartnership,
+  formatDate,
   partnershipAccess,
-  partnershipCodeTaken,
   partnershipRule,
-  partnershipToForm,
-  partnerships as seedPartnerships,
-  updatePartnershipRecord,
-  useAddedPartnerships,
-  usePartnershipOverrides,
+  statusText,
+  toPartnershipBody,
+  withOption,
 } from './partnershipRecords.js'
 import { StatusPill } from './partnershipUi.jsx'
 
-function formatToday() {
-  return new Date().toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' })
-}
-
-function validate(form, ignoreCode) {
+function validate(form) {
   const nextErrors = {}
   if (!form.name.trim()) nextErrors.name = 'Enter a partnership name.'
   if (!form.code.trim()) nextErrors.code = 'Enter an agreement code.'
-  else if (partnershipCodeTaken(form.code, ignoreCode)) nextErrors.code = 'This agreement code is already in use.'
   if (!form.agreementType) nextErrors.agreementType = 'Select an agreement type.'
   if (!form.branch) nextErrors.branch = 'Select a branch.'
   if (!form.effectiveDate.trim()) nextErrors.effectiveDate = 'Enter an effective date.'
@@ -38,8 +33,7 @@ function validate(form, ignoreCode) {
   if (!form.profitOwner) nextErrors.profitOwner = 'Select a profit allocation owner.'
   if (!form.lossOwner) nextErrors.lossOwner = 'Select a loss allocation owner.'
   if (!form.approvalAuthority) nextErrors.approvalAuthority = 'Select an approval authority.'
-  if (!form.fileName) nextErrors.fileName = 'Upload the signed partnership agreement.'
-  const rows = form.partners.filter((row) => row.name)
+  const rows = form.partners.filter((row) => row.ownerId)
   if (!rows.length || rows.some((row) => !row.contribution || !row.ownership || !row.profitShare || !row.lossShare)) {
     nextErrors.partners = 'Enter each partner, contribution, and share.'
   } else if (!allocationsBalanced(rows)) {
@@ -50,15 +44,18 @@ function validate(form, ignoreCode) {
 
 function EditPartnershipPage() {
   const { id } = useParams()
-  const navigate = useNavigate()
-  const added = useAddedPartnerships()
-  const overrides = usePartnershipOverrides()
-  const register = mergePartnershipRegister(added, seedPartnerships, overrides)
-  const record = register.find((item) => item.id === id || item.code === id) || null
-  const [form, setForm] = useState(() => (record ? partnershipToForm(record) : null))
-  const [errors, setErrors] = useState({})
+  const partnershipQuery = usePartnership(id)
+  const record = partnershipQuery.data?.data
 
-  if (!record || !form) {
+  if (partnershipQuery.isLoading) {
+    return <Message>Loading partnership...</Message>
+  }
+
+  if (partnershipQuery.isError) {
+    return <Message className="text-rose-500">{partnershipQuery.error.response?.data?.message || 'Could not load this partnership.'}</Message>
+  }
+
+  if (!record) {
     return (
       <section className="rounded-2xl border border-slate-200/80 bg-white px-5 py-8 text-center shadow-sm">
         <h1 className="text-sm font-semibold text-slate-900">Partnership not found</h1>
@@ -69,6 +66,27 @@ function EditPartnershipPage() {
     )
   }
 
+  return <EditPartnershipForm key={record._id} record={record} />
+}
+
+function EditPartnershipForm({ record }) {
+  const { id } = useParams()
+  const navigate = useNavigate()
+  const updatePartnership = useUpdatePartnership()
+  const branchesQuery = useBranches({ page: 1, limit: 100, search: '', status: 'active' })
+  const ownersQuery = useOwners({ page: 1, limit: 100, search: '', status: 'active', branchId: '' })
+  const [form, setForm] = useState(() => formFromPartnership(record))
+  const [errors, setErrors] = useState({})
+  const branchOptions = withOption(
+    (branchesQuery.data?.data || []).map((branch) => ({
+      value: branch._id,
+      label: branch.name,
+    })),
+    form.branch,
+    branchNameOf(record),
+  )
+  const owners = ownersQuery.data?.data || []
+
   function update(key, value) {
     setForm((current) => ({ ...current, [key]: value }))
     setErrors((current) => ({ ...current, [key]: '' }))
@@ -76,33 +94,26 @@ function EditPartnershipPage() {
 
   function save(event) {
     event.preventDefault()
-    const nextErrors = validate(form, record.code)
+    const nextErrors = validate(form)
     setErrors(nextErrors)
-    if (Object.keys(nextErrors).length) return
-    const next = {
-      ...record,
-      ...form,
-      name: form.name.trim(),
-      code: form.code.trim(),
-      startDate: formatDisplayDate(form.effectiveDate) || formatDisplayDate(form.startDate),
-      endDate: formatDisplayDate(form.endDate),
-      effectiveDate: formatDisplayDate(form.effectiveDate),
-      capitalCommitment: form.capitalCommitment.trim() ? formatMoney(parseMoney(form.capitalCommitment)) : '',
-      partners: form.partners
-        .filter((row) => row.name)
-        .map((row) => ({
-          ...row,
-          contribution: formatMoney(parseMoney(row.contribution)),
-          ownership: formatShare(row.ownership),
-          profitShare: formatShare(row.profitShare),
-          lossShare: formatShare(row.lossShare),
-        })),
-      governedBy: form.managingPartner,
-      updatedOn: formatToday(),
+    if (updatePartnership.isPending) return
+    if (Object.keys(nextErrors).length) {
+      toast.error(Object.values(nextErrors)[0])
+      return
     }
-    updatePartnershipRecord(next)
-    toast.success(`${next.name} updated.`)
-    navigate(`/organization/partnerships/${record.id}`)
+    updatePartnership.mutate(
+      { id, ...toPartnershipBody(form, form.status) },
+      {
+        onSuccess: (data) => {
+          toast.success(data?.message || `${form.name.trim()} updated.`)
+          navigate(`/organization/partnerships`)
+        },
+        onError: (error) => {
+          applyPartnershipErrors(error, setErrors)
+          toast.error(error.response?.data?.message || 'Could not update the partnership.')
+        },
+      },
+    )
   }
 
   return (
@@ -123,7 +134,7 @@ function EditPartnershipPage() {
             Update the agreement, participants, contributions and profit sharing terms.
           </p>
         </div>
-        <Link to={`/organization/partnerships/${record.id}`} className="inline-flex items-center gap-1.5 text-sm font-medium text-[#2f6fed]">
+        <Link to={`/organization/partnerships/${id}`} className="inline-flex items-center gap-1.5 text-sm font-medium text-[#2f6fed]">
           <ArrowLeft size={15} />
           Back to Partnership
         </Link>
@@ -131,13 +142,24 @@ function EditPartnershipPage() {
 
       <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
         <div className="space-y-4">
-          <PartnershipForm form={form} errors={errors} update={update} setPartners={(partners) => update('partners', partners)} />
+          <PartnershipForm
+            form={form}
+            errors={errors}
+            update={update}
+            setPartners={(partners) => update('partners', partners)}
+            branchOptions={branchOptions}
+            owners={owners}
+          />
           <div className="flex flex-wrap items-center gap-2">
-            <button type="button" onClick={() => navigate(`/organization/partnerships/${record.id}`)} className="cursor-pointer rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700">
+            <button type="button" onClick={() => navigate(`/organization/partnerships/${id}`)} className="cursor-pointer rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700">
               Cancel
             </button>
-            <button type="submit" className="cursor-pointer rounded-lg bg-[#2f6fed] px-4 py-2 text-sm font-medium text-white">
-              Save changes
+            <button
+              type="submit"
+              disabled={updatePartnership.isPending}
+              className="cursor-pointer rounded-lg bg-[#2f6fed] px-4 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {updatePartnership.isPending ? 'Saving...' : 'Save changes'}
             </button>
           </div>
           <p className="text-xs text-slate-400">
@@ -146,24 +168,24 @@ function EditPartnershipPage() {
         </div>
 
         <aside className="rounded-2xl border border-slate-200/80 bg-white px-5 py-5 shadow-sm">
-          <h2 className="text-[18px] font-semibold text-slate-900">{record.name}</h2>
-          <p className="mt-1 font-mono text-[13px] text-slate-400">{record.code}</p>
+          <h2 className="text-[18px] font-semibold text-slate-900">{display(record.name)}</h2>
+          <p className="mt-1 font-mono text-[13px] text-slate-400">{display(record.code)}</p>
           <div className="mt-3">
-            <StatusPill status={record.status} />
+            <StatusPill status={statusText(record)} />
           </div>
           <p className="mt-4 text-[13px] leading-5 text-slate-500">{partnershipRule}</p>
           <dl className="mt-5 space-y-3.5 text-sm">
             <div>
               <dt className="text-slate-400">Governed by</dt>
-              <dd className="font-medium text-slate-800">{record.governedBy || record.managingPartner}</dd>
+              <dd className="font-medium text-slate-800">{display(record.managingPartner)}</dd>
             </div>
             <div>
               <dt className="text-slate-400">Created on</dt>
-              <dd className="font-medium text-slate-800">{record.createdOn}</dd>
+              <dd className="font-medium text-slate-800">{formatDate(record.createdAt)}</dd>
             </div>
             <div>
               <dt className="text-slate-400">Updated</dt>
-              <dd className="font-medium text-slate-800">{record.updatedOn}</dd>
+              <dd className="font-medium text-slate-800">{formatDate(record.updatedAt)}</dd>
             </div>
           </dl>
           <div className="mt-5 rounded-xl bg-[#eef4ff] px-4 py-3.5">
@@ -173,6 +195,14 @@ function EditPartnershipPage() {
         </aside>
       </div>
     </form>
+  )
+}
+
+function Message({ children, className = '' }) {
+  return (
+    <section className={`rounded-2xl border border-slate-200/80 bg-white px-5 py-8 text-center text-sm font-semibold shadow-sm ${className}`}>
+      {children}
+    </section>
   )
 }
 

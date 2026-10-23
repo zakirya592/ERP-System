@@ -2,98 +2,45 @@ import { useState } from 'react'
 import { ArrowLeft } from 'lucide-react'
 import { Link, useNavigate } from 'react-router-dom'
 import { toast } from 'react-toastify'
+import { useBranches } from '../../../queries/branches/branches.queries.js'
+import { useOwners } from '../../../queries/owners/owners.queries.js'
+import { useCreatePartnership } from '../../../queries/partnerships/partnerships.queries.js'
 import { PartnershipForm } from './PartnershipForm.jsx'
 import {
-  addPartnershipRecord,
   allocationsBalanced,
+  applyPartnershipErrors,
+  createdId,
   emptyPartner,
-  formatMoney,
-  formatShare,
-  formatDisplayDate,
-  nextPartnershipCode,
-  parseMoney,
   partnershipAccess,
-  partnershipCodeTaken,
   partnershipRule,
   todayInput,
+  toPartnershipBody,
+  withOption,
 } from './partnershipRecords.js'
+
 const emptyForm = {
   name: '',
   code: '',
   agreementType: '',
   branch: '',
-  startDate: '',
   endDate: '',
   effectiveDate: todayInput(),
-  status: 'Draft',
-  profitBasis: '',
-  lossBasis: '',
-  reviewCycle: '',
+  status: 'draft',
   distributionFrequency: '',
   capitalCommitment: '',
-  minimumContribution: '',
   managingPartner: '',
   reviewOwner: '',
   profitOwner: '',
   lossOwner: '',
   approvalAuthority: '',
-  documentReference: '',
-  fileName: '',
   notes: '',
   partners: [emptyPartner()],
-}
-
-function formatToday() {
-  return new Date().toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' })
-}
-
-function toRecord(form, status) {
-  const code = form.code.trim() || nextPartnershipCode()
-  const today = formatToday()
-  return {
-    id: code,
-    code,
-    name: form.name.trim(),
-    agreementType: form.agreementType,
-    branch: form.branch,
-    startDate: formatDisplayDate(form.effectiveDate) || formatDisplayDate(form.startDate),
-    endDate: formatDisplayDate(form.endDate),
-    effectiveDate: formatDisplayDate(form.effectiveDate),
-    status,
-    profitBasis: form.profitBasis,
-    lossBasis: form.lossBasis,
-    reviewCycle: form.reviewCycle,
-    distributionFrequency: form.distributionFrequency,
-    capitalCommitment: form.capitalCommitment.trim() ? formatMoney(parseMoney(form.capitalCommitment)) : '',
-    minimumContribution: form.minimumContribution.trim() ? formatMoney(parseMoney(form.minimumContribution)) : '',
-    managingPartner: form.managingPartner,
-    reviewOwner: form.reviewOwner,
-    profitOwner: form.profitOwner,
-    lossOwner: form.lossOwner,
-    approvalAuthority: form.approvalAuthority,
-    partners: form.partners
-      .filter((row) => row.name || row.contribution || row.ownership)
-      .map((row) => ({
-        ...row,
-        contribution: row.contribution ? formatMoney(parseMoney(row.contribution)) : '',
-        ownership: formatShare(row.ownership),
-        profitShare: formatShare(row.profitShare),
-        lossShare: formatShare(row.lossShare),
-      })),
-    documentReference: form.documentReference.trim(),
-    fileName: form.fileName.trim(),
-    notes: form.notes.trim(),
-    governedBy: form.managingPartner,
-    createdOn: today,
-    updatedOn: today,
-  }
 }
 
 function validate(form, submit) {
   const nextErrors = {}
   if (!form.name.trim()) nextErrors.name = 'Enter a partnership name.'
   if (!form.code.trim()) nextErrors.code = 'Enter an agreement code.'
-  else if (partnershipCodeTaken(form.code)) nextErrors.code = 'This agreement code is already in use.'
   if (!submit) return nextErrors
 
   if (!form.agreementType) nextErrors.agreementType = 'Select an agreement type.'
@@ -104,8 +51,7 @@ function validate(form, submit) {
   if (!form.profitOwner) nextErrors.profitOwner = 'Select a profit allocation owner.'
   if (!form.lossOwner) nextErrors.lossOwner = 'Select a loss allocation owner.'
   if (!form.approvalAuthority) nextErrors.approvalAuthority = 'Select an approval authority.'
-  if (!form.fileName) nextErrors.fileName = 'Upload the signed partnership agreement.'
-  const rows = form.partners.filter((row) => row.name)
+  const rows = form.partners.filter((row) => row.ownerId)
   if (!rows.length || rows.some((row) => !row.contribution || !row.ownership || !row.profitShare || !row.lossShare)) {
     nextErrors.partners = 'Enter each partner, contribution, and share.'
   } else if (!allocationsBalanced(rows)) {
@@ -116,8 +62,16 @@ function validate(form, submit) {
 
 function AddPartnershipPage() {
   const navigate = useNavigate()
+  const createPartnership = useCreatePartnership()
+  const branchesQuery = useBranches({ page: 1, limit: 100, search: '', status: 'active' })
+  const ownersQuery = useOwners({ page: 1, limit: 100, search: '', status: 'active', branchId: '' })
   const [form, setForm] = useState(emptyForm)
   const [errors, setErrors] = useState({})
+  const branchOptions = (branchesQuery.data?.data || []).map((branch) => ({
+    value: branch._id,
+    label: branch.name,
+  }))
+  const owners = ownersQuery.data?.data || []
 
   function update(key, value) {
     setForm((current) => ({ ...current, [key]: value }))
@@ -127,11 +81,24 @@ function AddPartnershipPage() {
   function save(submit) {
     const nextErrors = validate(form, submit)
     setErrors(nextErrors)
-    if (Object.keys(nextErrors).length) return
-    const status = submit ? 'Active' : 'Draft'
-    const record = addPartnershipRecord(toRecord(form, status))
-    toast.success(submit ? `${record.name} submitted.` : `${record.name} saved as draft.`)
-    navigate('/organization/partnerships', { state: { selectedId: record.id } })
+    if (createPartnership.isPending) return
+    if (Object.keys(nextErrors).length) {
+      toast.error(Object.values(nextErrors)[0])
+      return
+    }
+    createPartnership.mutate(toPartnershipBody(form, form.status), {
+      onSuccess: (data) => {
+        const name = form.name.trim()
+        const draft = form.status === 'draft'
+        toast.success(data?.message || (draft ? `${name} saved as draft.` : `${name} submitted.`))
+        const id = createdId(data)
+        navigate('/organization/partnerships', { state: id ? { selectedId: id } : undefined })
+      },
+      onError: (error) => {
+        applyPartnershipErrors(error, setErrors)
+        toast.error(error.response?.data?.message || 'Could not save the partnership.')
+      },
+    })
   }
 
   return (
@@ -166,16 +133,32 @@ function AddPartnershipPage() {
 
       <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
         <div className="space-y-4">
-          <PartnershipForm form={form} errors={errors} update={update} setPartners={(partners) => update('partners', partners)} />
+          <PartnershipForm
+            form={form}
+            errors={errors}
+            update={update}
+            setPartners={(partners) => update('partners', partners)}
+            branchOptions={withOption(branchOptions, form.branch)}
+            owners={owners}
+          />
           <div className="flex flex-wrap items-center gap-2">
             <button type="button" onClick={() => navigate('/organization/partnerships')} className="cursor-pointer rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700">
               Cancel
             </button>
-            <button type="button" onClick={() => save(false)} className="cursor-pointer rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700">
-              Save as draft
+            <button
+              type="button"
+              disabled={createPartnership.isPending}
+              onClick={() => save(false)}
+              className="cursor-pointer rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {createPartnership.isPending ? 'Saving...' : 'Save as draft'}
             </button>
-            <button type="submit" className="cursor-pointer rounded-lg bg-[#2f6fed] px-4 py-2 text-sm font-medium text-white">
-              Save and submit
+            <button
+              type="submit"
+              disabled={createPartnership.isPending}
+              className="cursor-pointer rounded-lg bg-[#2f6fed] px-4 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {createPartnership.isPending ? 'Saving...' : 'Save and submit'}
             </button>
           </div>
           <p className="text-xs text-slate-400">

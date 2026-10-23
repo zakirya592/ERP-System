@@ -25,6 +25,10 @@ export const queryKeys = {
     list: (params) => ['owners', 'list', params],
     detail: (id) => ['owners', 'detail', id],
   },
+  partnerships: {
+    list: (params) => ['partnerships', 'list', params],
+    detail: (id) => ['partnerships', 'detail', id],
+  },
   shops: {
     list: (params) => ['shops', 'list', params],
     detail: (id) => ['shops', 'detail', id],
