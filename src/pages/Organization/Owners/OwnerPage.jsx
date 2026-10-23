@@ -1,23 +1,24 @@
-import { useState } from 'react'
-import { Plus, Search } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { Eye, Pencil, Plus, Search } from 'lucide-react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { toast } from 'react-toastify'
 import ExportButton from '../../../components/ExportButton.jsx'
 import GlobalTable from '../../../components/GlobalTable.jsx'
+import { getOwners } from '../../../api/owners.api.js'
+import { useBranches } from '../../../queries/branches/branches.queries.js'
+import { useOwner, useOwners, useUpdateOwnerStatus } from '../../../queries/owners/owners.queries.js'
+import { fetchAllPages } from '../../../utils/exportExcel.js'
 import {
-  formatMoney,
+  display,
   formatPercent,
   formatPledged,
-  mergeOwnerRegister,
-  ownerAccess,
+  mapOwner,
+  ownerStatuses,
   ownerSummary,
-  parseMoney,
-  parseShare,
-  useAddedOwners,
-  useOwnerOverrides,
+  statusClassName,
 } from './ownerRecords.js'
 
-const pageSize = 5
+const limit = 20
 
 const tabs = ['Branches', 'Shops', 'Warehouses', 'Employees', 'Owners', 'Partnerships']
 
@@ -29,91 +30,15 @@ const tabRoutes = {
   Partnerships: '/organization/partnerships',
 }
 
-export const owners = [
-  {
-    id: 'OWN-001',
-    code: 'OWN-001',
-    name: 'Amina Rahman',
-    type: 'Individual',
-    identity: '42101-1234567-1',
-    email: 'amina@example.com',
-    phone: '',
-    address: 'City Center',
-    country: 'Pakistan',
-    share: '60%',
-    capitalCommitment: 'PKR 6,000,000',
-    effectiveDate: 'Jan 01, 2026',
-    capitalAccount: 'Owner capital — Amina',
-    signatory: 'Amina Rahman',
-    status: 'Active',
-    branch: 'Central Branch',
-    documentType: 'Identity / registration',
-    documentReference: 'DOC-OWN-001',
-    fileName: 'agreement-or-record.pdf',
-    notes: '',
-    createdBy: 'Amina Rahman',
-    createdOn: 'Jan 01, 2026',
-    updatedOn: 'Sep 20, 2026',
-    summary: ownerSummary,
-    access: ownerAccess,
-    interests: [
-      {
-        id: 'OWN-001-interest',
-        entity: 'Central Trading',
-        share: '60%',
-        committed: 'PKR 6,000,000',
-        paidIn: 'PKR 4,500,000',
-        effectiveDate: 'Jan 01, 2026',
-      },
-    ],
-  },
-  {
-    id: 'OWN-002',
-    code: 'OWN-002',
-    name: 'Khalid Trading Ltd',
-    type: 'Corporate',
-    identity: 'REG-88421',
-    email: 'accounts@khalidtrading.com',
-    phone: '',
-    address: 'North District',
-    country: 'Pakistan',
-    share: '40%',
-    capitalCommitment: 'PKR 4,000,000',
-    effectiveDate: 'Jan 01, 2026',
-    capitalAccount: 'Owner capital — Khalid',
-    signatory: 'Imran Khalid',
-    status: 'Active',
-    branch: 'Central Branch',
-    documentType: 'Identity / registration',
-    documentReference: 'DOC-OWN-002',
-    fileName: '',
-    notes: '',
-    createdBy: 'Amina Rahman',
-    createdOn: 'Feb 12, 2026',
-    updatedOn: 'Sep 18, 2026',
-    summary: ownerSummary,
-    access: ownerAccess,
-    interests: [
-      {
-        id: 'OWN-002-interest',
-        entity: 'Central Trading',
-        share: '40%',
-        committed: 'PKR 4,000,000',
-        paidIn: 'PKR 3,000,000',
-        effectiveDate: 'Jan 01, 2026',
-      },
-    ],
-  },
+const statusOptions = [
+  { label: 'All statuses', value: '' },
+  { label: 'Active', value: 'active' },
+  { label: 'Inactive', value: 'inactive' },
 ]
-
-const statusClass = {
-  Active: 'bg-[#e7f8ee] text-[#1f9d57]',
-  Inactive: 'bg-[#eef1f4] text-[#8b95a5]',
-}
 
 function StatusPill({ status }) {
   return (
-    <span className={`inline-flex rounded-full px-2.5 py-0.5 text-[12px] font-medium ${statusClass[status] || 'bg-slate-100 text-slate-500'}`}>
+    <span className={`inline-flex rounded-full px-2.5 py-0.5 text-[12px] font-medium ${statusClassName(status)}`}>
       {status}
     </span>
   )
@@ -124,7 +49,7 @@ function ownerColumns(onView, onEdit) {
     {
       key: 'code',
       label: 'CODE',
-      renderCell: (item) => <span className="font-mono text-[12px] text-slate-400">{item.code}</span>,
+      renderCell: (item) => <span className="font-mono text-[12px] text-slate-400">{display(item.code)}</span>,
     },
     {
       key: 'name',
@@ -132,19 +57,19 @@ function ownerColumns(onView, onEdit) {
       isRowHeader: true,
       renderCell: (item) => (
         <button type="button" onClick={() => onView(item)} className="text-[13px] font-medium text-slate-800">
-          {item.name}
+          {display(item.name)}
         </button>
       ),
     },
     {
       key: 'type',
       label: 'TYPE',
-      renderCell: (item) => <span className="text-[13px] text-slate-600">{item.type}</span>,
+      renderCell: (item) => <span className="text-[13px] text-slate-600">{display(item.type)}</span>,
     },
     {
       key: 'share',
       label: 'OWNERSHIP',
-      renderCell: (item) => <span className="text-[13px] font-medium text-slate-800">{item.share}</span>,
+      renderCell: (item) => <span className="text-[13px] font-medium text-slate-800">{display(item.share)}</span>,
     },
     {
       key: 'status',
@@ -157,12 +82,22 @@ function ownerColumns(onView, onEdit) {
       className: 'text-right',
       cellClassName: 'text-right',
       renderCell: (item) => (
-        <div className="flex justify-end gap-3">
-          <button type="button" onClick={() => onView(item)} className="text-[13px] font-medium text-[#2f6fed]">
-            View
+        <div className="flex justify-end gap-1">
+          <button
+            type="button"
+            aria-label={`View ${item.name}`}
+            onClick={() => onView(item)}
+            className="inline-flex cursor-pointer items-center justify-center rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 hover:text-[#2563eb]"
+          >
+            <Eye size={16} />
           </button>
-          <button type="button" onClick={() => onEdit(item)} className="text-[13px] font-medium text-[#2f6fed]">
-            Edit
+          <button
+            type="button"
+            aria-label={`Edit ${item.name}`}
+            onClick={() => onEdit(item)}
+            className="inline-flex cursor-pointer items-center justify-center rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 hover:text-[#2563eb]"
+          >
+            <Pencil size={16} />
           </button>
         </div>
       ),
@@ -175,75 +110,83 @@ const interestColumns = [
     key: 'entity',
     label: 'ENTITY',
     isRowHeader: true,
-    renderCell: (item) => <span className="text-[13px] font-medium text-slate-800">{item.entity}</span>,
+    renderCell: (item) => <span className="text-[13px] font-medium text-slate-800">{display(item.entity)}</span>,
   },
   {
     key: 'share',
     label: 'SHARE',
-    renderCell: (item) => <span className="text-[13px] text-slate-600">{item.share}</span>,
+    renderCell: (item) => <span className="text-[13px] text-slate-600">{display(item.share)}</span>,
   },
   {
     key: 'committed',
     label: 'COMMITTED',
-    renderCell: (item) => <span className="text-[13px] text-slate-600">{item.committed}</span>,
+    renderCell: (item) => <span className="text-[13px] text-slate-600">{display(item.committed)}</span>,
   },
   {
     key: 'paidIn',
     label: 'PAID IN',
-    renderCell: (item) => <span className="text-[13px] text-slate-600">{item.paidIn}</span>,
+    renderCell: (item) => <span className="text-[13px] text-slate-600">{display(item.paidIn)}</span>,
   },
   {
     key: 'effectiveDate',
     label: 'EFFECTIVE DATE',
-    renderCell: (item) => <span className="text-[13px] text-slate-600">{item.effectiveDate}</span>,
+    renderCell: (item) => <span className="text-[13px] text-slate-600">{display(item.effectiveDate)}</span>,
   },
 ]
-
-function totalInterest(register) {
-  const interests = register.flatMap((owner) => owner.interests || [])
-  const share = register.reduce((total, owner) => total + parseShare(owner.share), 0)
-  const committed = interests.reduce((total, item) => total + parseMoney(item.committed), 0)
-  const paidIn = interests.reduce((total, item) => total + parseMoney(item.paidIn), 0)
-  return {
-    id: 'total-allocated',
-    entity: 'Total allocated',
-    share: formatPercent(share),
-    committed: formatMoney(committed),
-    paidIn: formatMoney(paidIn),
-    effectiveDate: 'Current',
-  }
-}
 
 function OwnerPage() {
   const navigate = useNavigate()
   const location = useLocation()
-  const addedOwners = useAddedOwners()
-  const overrides = useOwnerOverrides()
-  const register = mergeOwnerRegister(addedOwners, owners, overrides)
   const [tab, setTab] = useState('Owners')
   const [query, setQuery] = useState('')
+  const [debouncedSearch, setDebouncedSearch] = useState('')
   const [branch, setBranch] = useState('')
   const [status, setStatus] = useState('')
   const [page, setPage] = useState(1)
-  const [selectedId, setSelectedId] = useState(location.state?.selectedId || owners[0].id)
-  const [interestId, setInterestId] = useState(owners[0].interests[0].id)
+  const [selectedId, setSelectedId] = useState(location.state?.selectedId || null)
+  const [interestId, setInterestId] = useState(null)
 
-  const branches = [...new Set(register.map((owner) => owner.branch).filter(Boolean))]
-  const needle = query.trim().toLowerCase()
-  const filtered = register.filter((owner) => {
-    const matchesQuery = !needle || owner.name.toLowerCase().includes(needle) || owner.code.toLowerCase().includes(needle)
-    const matchesBranch = !branch || owner.branch === branch
-    const matchesStatus = !status || owner.status === status
-    return matchesQuery && matchesBranch && matchesStatus
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(query.trim()), 300)
+    return () => clearTimeout(timer)
+  }, [query])
+
+  useEffect(() => {
+    setPage(1)
+  }, [debouncedSearch, status, branch])
+
+  const updateStatus = useUpdateOwnerStatus()
+  const ownersQuery = useOwners({
+    page,
+    limit,
+    search: debouncedSearch,
+    status,
+    branchId: branch,
   })
-  const start = (page - 1) * pageSize
-  const pageRows = filtered.slice(start, start + pageSize)
+  const branchesQuery = useBranches({ page: 1, limit: 100, search: '', status: 'active' })
+  const pageRows = (ownersQuery.data?.data || []).map(mapOwner)
+  const total = ownersQuery.data?.meta?.total ?? pageRows.length
+  const summary = ownersQuery.data?.meta?.summary || ownersQuery.data?.data?.[0]?.summary
   const selected = pageRows.find((owner) => owner.id === selectedId) || pageRows[0] || null
-  const interests = selected ? [...(selected.interests || []), totalInterest(register)] : []
+
+  useEffect(() => {
+    if (selectedId && pageRows.some((owner) => owner.id === selectedId)) return
+    if (pageRows[0]) setSelectedId(pageRows[0].id)
+  }, [pageRows, selectedId])
+
+  const detailQuery = useOwner(selected?.id)
+  const detail = detailQuery.data?.data ? mapOwner(detailQuery.data.data) : null
+  const profile = detail || selected
+  const interests = profile?.interests || []
   const selectedInterest = interests.find((item) => item.id === interestId) || interests[0] || null
-  const activeCount = register.filter((owner) => owner.status === 'Active').length
-  const shareTotal = register.reduce((total, owner) => total + parseShare(owner.share), 0)
-  const pledged = register.reduce((total, owner) => total + parseMoney(owner.capitalCommitment), 0)
+  const branchOptions = (branchesQuery.data?.data || []).map((item) => ({
+    id: item._id,
+    name: item.name,
+  }))
+  const ownerTotal = summary?.owners?.total ?? ownersQuery.data?.meta?.total ?? '—'
+  const activeCount = summary?.owners?.active ?? '—'
+  const shareTotal = summary ? formatPercent(summary.ownershipAllocated) : '—'
+  const pledged = summary ? formatPledged(summary.capitalPledged) : '—'
 
   function openTab(item) {
     const route = tabRoutes[item]
@@ -265,6 +208,22 @@ function OwnerPage() {
 
   function editOwner(owner) {
     navigate(`/organization/owners/${owner.id}/edit`)
+  }
+
+  function changeStatus(nextStatus) {
+    if (!profile?.id || profile.statusValue === nextStatus || updateStatus.isPending) return
+    updateStatus.mutate(
+      { id: profile.id, status: nextStatus },
+      {
+        onSuccess: (data) => {
+          const label = ownerStatuses.find((option) => option.value === nextStatus)?.label || nextStatus
+          toast.success(data?.message || `${profile.name || 'Owner'} is now ${label}.`)
+        },
+        onError: (error) => {
+          toast.error(error.response?.data?.message || 'Could not update the owner status.')
+        },
+      },
+    )
   }
 
   function clearFilters() {
@@ -297,12 +256,15 @@ function OwnerPage() {
             filename="owners"
             sheetName="Owners"
             columns={ownerColumns(viewOwner, editOwner)}
-            rows={filtered}
+            loadRows={async () => {
+              const rows = await fetchAllPages(getOwners, { search: debouncedSearch, status, branchId: branch })
+              return rows.map(mapOwner)
+            }}
           />
           <button
             type="button"
             onClick={() => navigate('/organization/owners/new')}
-            className="inline-flex items-center gap-2 rounded-lg bg-[#2f6fed] px-3.5 py-2 text-sm font-medium text-white"
+            className="inline-flex cursor-pointer items-center gap-2 rounded-lg bg-[#2f6fed] px-3.5 py-2 text-sm font-medium text-white"
           >
             <Plus size={15} />
             Add Owner
@@ -328,10 +290,10 @@ function OwnerPage() {
       </div>
 
       <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <Stat label="Owners" value={register.length} />
+        <Stat label="Owners" value={ownerTotal} />
         <Stat label="Active" value={activeCount} />
-        <Stat label="Ownership allocated" value={formatPercent(shareTotal)} />
-        <Stat label="Capital pledged" value={formatPledged(pledged)} />
+        <Stat label="Ownership allocated" value={shareTotal} />
+        <Stat label="Capital pledged" value={pledged} />
       </section>
 
       {tab === 'Owners' ? (
@@ -341,10 +303,7 @@ function OwnerPage() {
               <Search size={15} className="absolute top-1/2 left-3 -translate-y-1/2 text-slate-400" />
               <input
                 value={query}
-                onChange={(event) => {
-                  setQuery(event.target.value)
-                  setPage(1)
-                }}
+                onChange={(event) => setQuery(event.target.value)}
                 placeholder="Search name or code"
                 className="w-full rounded-lg border border-slate-200 bg-white py-2 pr-3 pl-9 text-sm outline-none focus:border-sky-400"
               />
@@ -352,31 +311,27 @@ function OwnerPage() {
             <select
               aria-label="Branch"
               value={branch}
-              onChange={(event) => {
-                setBranch(event.target.value)
-                setPage(1)
-              }}
+              onChange={(event) => setBranch(event.target.value)}
               className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:border-sky-400"
             >
               <option value="">All branches</option>
-              {branches.map((item) => (
-                <option key={item} value={item}>
-                  {item}
+              {branchOptions.map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.name}
                 </option>
               ))}
             </select>
             <select
               aria-label="Status"
               value={status}
-              onChange={(event) => {
-                setStatus(event.target.value)
-                setPage(1)
-              }}
+              onChange={(event) => setStatus(event.target.value)}
               className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:border-sky-400"
             >
-              <option value="">All statuses</option>
-              <option value="Active">Active</option>
-              <option value="Inactive">Inactive</option>
+              {statusOptions.map((option) => (
+                <option key={option.label} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
             </select>
             <button type="button" onClick={clearFilters} className="cursor-pointer px-2 py-2 text-sm font-medium text-[#2f6fed] lg:ml-auto">
               Clear filters
@@ -394,15 +349,21 @@ function OwnerPage() {
                   columns={ownerColumns(viewOwner, editOwner)}
                   data={pageRows}
                   pagination
-                  rowsPerPage={pageSize}
+                  rowsPerPage={limit}
                   page={page}
-                  totalCount={filtered.length}
+                  totalCount={total}
                   onPageChange={setPage}
                   className="h-auto! max-h-none!"
                   contentClassName="min-w-full"
-                  emptyContent="No owners match these filters."
+                  emptyContent={
+                    ownersQuery.isError
+                      ? ownersQuery.error.response?.data?.message || 'Could not load owners.'
+                      : ownersQuery.isLoading
+                        ? 'Loading owners...'
+                        : 'No owners match these filters.'
+                  }
                   summary={
-                    filtered.length
+                    total
                       ? `Showing ${pageRows.length} ${pageRows.length === 1 ? 'record' : 'records'}${selected ? ' · 1 selected' : ''}`
                       : undefined
                   }
@@ -425,10 +386,18 @@ function OwnerPage() {
                   columns={interestColumns}
                   data={interests}
                   pagination
-                  rowsPerPage={pageSize}
+                  rowsPerPage={limit}
                   className="h-auto! max-h-none!"
                   contentClassName="min-w-full"
-                  emptyContent={selected ? 'This owner has no capital interests.' : 'Select an owner to see capital interests.'}
+                  emptyContent={
+                    !selected
+                      ? 'Select an owner to see capital interests.'
+                      : detailQuery.isLoading
+                        ? 'Loading interests...'
+                        : detailQuery.isError
+                          ? detailQuery.error.response?.data?.message || 'Could not load interests.'
+                          : 'This owner has no capital interests.'
+                  }
                   summary={
                     interests.length
                       ? `Showing ${interests.length} ${interests.length === 1 ? 'record' : 'records'}${selectedInterest ? ' · 1 selected' : ''}`
@@ -440,7 +409,9 @@ function OwnerPage() {
               </section>
             </div>
 
-            {selected ? <OwnerDetail owner={selected} /> : null}
+            {profile ? (
+              <OwnerDetail owner={profile} statusPending={updateStatus.isPending} onStatusChange={changeStatus} />
+            ) : null}
           </div>
         </>
       ) : (
@@ -459,17 +430,19 @@ function Stat({ label, value }) {
   )
 }
 
-function OwnerDetail({ owner }) {
+function OwnerDetail({ owner, statusPending, onStatusChange }) {
   return (
     <aside className="rounded-2xl border border-slate-200/80 bg-white px-5 py-5 shadow-sm xl:sticky xl:top-4">
-      <h2 className="text-[18px] font-semibold text-slate-900">{owner.name}</h2>
-      <p className="mt-1 text-[13px] text-slate-400">{owner.code}</p>
+      <h2 className="text-[18px] font-semibold text-slate-900">{display(owner.name)}</h2>
+      <p className="mt-1 text-[13px] text-slate-400">{display(owner.code)}</p>
       <div className="mt-3">
         <StatusPill status={owner.status} />
       </div>
+      <StatusSwitcher value={owner.statusValue} pending={statusPending} onChange={onStatusChange} />
       <p className="mt-4 text-[13px] leading-5 text-slate-500">{owner.summary}</p>
       <dl className="mt-5 space-y-3.5">
-        <Fact label="Created by" value={owner.createdBy} />
+        <Fact label="Branch" value={display(owner.branch)} />
+        <Fact label="Capital commitment" value={display(owner.capitalCommitment)} />
         <Fact label="Created on" value={owner.createdOn} />
         <Fact label="Updated" value={owner.updatedOn} />
         <Fact label="Record status" value={owner.status} />
@@ -479,6 +452,32 @@ function OwnerDetail({ owner }) {
         <p className="mt-1 text-[13px] leading-5 text-slate-600">{owner.access}</p>
       </div>
     </aside>
+  )
+}
+
+function StatusSwitcher({ value, pending, onChange }) {
+  return (
+    <div className="mt-4">
+      <p className="text-[12px] font-medium text-slate-400">Owner status</p>
+      <div className="mt-2 grid grid-cols-2 gap-1 rounded-xl bg-slate-100 p-1">
+        {ownerStatuses.map((option) => {
+          const selected = value === option.value
+          return (
+            <button
+              key={option.value}
+              type="button"
+              disabled={pending}
+              onClick={() => onChange(option.value)}
+              className={`cursor-pointer rounded-lg px-1 py-1.5 text-[12px] font-medium disabled:cursor-not-allowed disabled:opacity-60 ${
+                selected ? `${statusClassName(option.label)} shadow-sm` : 'text-slate-500 hover:bg-white'
+              }`}
+            >
+              {option.label}
+            </button>
+          )
+        })}
+      </div>
+    </div>
   )
 }
 

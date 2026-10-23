@@ -1,25 +1,19 @@
-import { useRef, useState } from 'react'
+import { useState } from 'react'
 import { ArrowLeft, ChevronDown } from 'lucide-react'
 import { Link, useNavigate } from 'react-router-dom'
 import { toast } from 'react-toastify'
+import { useBranches } from '../../../queries/branches/branches.queries.js'
+import { useCreateOwner, useOwners } from '../../../queries/owners/owners.queries.js'
 import {
-  addOwnerRecord,
-  allocatedShare,
   allocationMessage,
-  buildInterests,
-  formatShare,
-  mergeOwnerRegister,
-  nextOwnerCode,
+  applyOwnerErrors,
   ownerAccess,
-  ownerCodeTaken,
   ownerStatuses,
   ownerSummary,
   ownerTypes,
   parseShare,
-  useAddedOwners,
-  useOwnerOverrides,
+  toOwnerBody,
 } from './ownerRecords.js'
-import { owners as seedOwners } from './OwnerPage.jsx'
 
 const steps = [
   'Complete required information',
@@ -31,128 +25,73 @@ const steps = [
 const emptyForm = {
   name: '',
   code: '',
-  type: '',
-  identity: '',
+  ownerType: '',
+  identityNo: '',
   email: '',
   phone: '',
   address: '',
   country: '',
+  branchId: '',
   share: '',
   capitalCommitment: '',
   effectiveDate: '',
   capitalAccount: '',
   signatory: '',
-  status: 'Active',
-  documentType: '',
-  documentReference: '',
-  fileName: '',
+  status: 'active',
   notes: '',
-}
-
-function currentUserName() {
-  try {
-    const user = JSON.parse(localStorage.getItem('user') || 'null')
-    return user?.name || 'Amina Rahman'
-  } catch {
-    return 'Amina Rahman'
-  }
-}
-
-function formatToday() {
-  return new Date().toLocaleDateString('en-US', {
-    month: 'short',
-    day: '2-digit',
-    year: 'numeric',
-  })
-}
-
-function toOwner(form) {
-  const code = form.code.trim() || nextOwnerCode()
-  const status = form.status || 'Active'
-  const today = formatToday()
-  const share = formatShare(form.share)
-  return {
-    id: code,
-    code,
-    name: form.name.trim(),
-    type: form.type,
-    identity: form.identity.trim(),
-    email: form.email.trim(),
-    phone: form.phone.trim(),
-    address: form.address.trim(),
-    country: form.country.trim(),
-    share,
-    capitalCommitment: form.capitalCommitment.trim(),
-    effectiveDate: form.effectiveDate.trim(),
-    capitalAccount: form.capitalAccount.trim(),
-    signatory: form.signatory.trim(),
-    status,
-    branch: '',
-    documentType: form.documentType.trim(),
-    documentReference: form.documentReference.trim(),
-    fileName: form.fileName.trim(),
-    notes: form.notes.trim(),
-    createdBy: currentUserName(),
-    createdOn: today,
-    updatedOn: today,
-    summary: ownerSummary,
-    access: ownerAccess,
-    interests: buildInterests({ ...form, share }, code),
-  }
 }
 
 function AddOwnerPage() {
   const navigate = useNavigate()
-  const fileRef = useRef(null)
-  const addedOwners = useAddedOwners()
-  const overrides = useOwnerOverrides()
-  const register = mergeOwnerRegister(addedOwners, seedOwners, overrides)
+  const createOwner = useCreateOwner()
+  const ownersQuery = useOwners({ page: 1, limit: 1, search: '', status: '', branchId: '' })
+  const branchesQuery = useBranches({ page: 1, limit: 100, search: '', status: 'active' })
+  const branchOptions = (branchesQuery.data?.data || []).map((branch) => ({
+    value: branch._id,
+    label: branch.name,
+  }))
   const [form, setForm] = useState(emptyForm)
   const [errors, setErrors] = useState({})
-  const allocated = allocatedShare(register)
+  const summary = ownersQuery.data?.meta?.summary
+  const allocated = summary ? parseShare(summary.ownershipAllocated) : null
 
   function update(key, value) {
     setForm((current) => ({ ...current, [key]: value }))
     setErrors((current) => ({ ...current, [key]: '' }))
   }
 
-  function onFile(file) {
-    if (!file) {
-      update('fileName', '')
-      return
-    }
-    const allowed = ['application/pdf', 'image/jpeg', 'image/png']
-    if (file.type && !allowed.includes(file.type)) {
-      setErrors((current) => ({ ...current, fileName: 'Use a PDF, JPG, or PNG file.' }))
-      return
-    }
-    update('fileName', file.name)
-  }
-
   function validate() {
     const nextErrors = {}
+    const share = parseShare(form.share)
     if (!form.name.trim()) nextErrors.name = 'Enter an owner name.'
-    if (!form.type) nextErrors.type = 'Select an owner type.'
-    if (!form.share.trim()) nextErrors.share = 'Enter an ownership share.'
-    else if (parseShare(form.share) <= 0) nextErrors.share = 'Enter an ownership share.'
-    else if (allocated + parseShare(form.share) > 100) nextErrors.share = 'Effective ownership must total 100%.'
+    if (!form.ownerType) nextErrors.ownerType = 'Select an owner type.'
+    if (!form.email.trim()) nextErrors.email = 'Enter an email.'
+    if (!form.share.trim() || share <= 0) nextErrors.share = 'Enter an ownership share.'
+    else if (share > 100) nextErrors.share = 'Ownership share cannot exceed 100%.'
+    else if (allocated != null && allocated + share > 100) nextErrors.share = 'Effective ownership must total 100%.'
     if (form.email.trim() && !form.email.includes('@')) nextErrors.email = 'Enter a valid email.'
-    if (form.code.trim() && ownerCodeTaken(form.code)) nextErrors.code = 'This owner code is already in use.'
     setErrors(nextErrors)
     return Object.keys(nextErrors).length === 0
   }
 
   function save(andAnother) {
     if (!validate()) return
-    const owner = addOwnerRecord(toOwner(form))
-    toast.success(`${owner.name} saved.`)
-    if (andAnother) {
-      setForm(emptyForm)
-      setErrors({})
-      if (fileRef.current) fileRef.current.value = ''
-      return
-    }
-    navigate('/organization/owners', { state: { selectedId: owner.id } })
+    createOwner.mutate(toOwnerBody(form), {
+      onSuccess: (data) => {
+        toast.success(data?.message || `${form.name.trim()} saved.`)
+        if (andAnother) {
+          setForm(emptyForm)
+          setErrors({})
+          return
+        }
+        const id = data?.data?._id
+        navigate('/organization/owners', { state: id ? { selectedId: id } : undefined })
+      },
+      onError: (error) => {
+        applyOwnerErrors(error, setErrors)
+        toast.error(error.response?.data?.message || 'Could not save the owner.')
+      },
+    })
   }
 
   return (
@@ -190,52 +129,34 @@ function AddOwnerPage() {
           <FormCard title="Owner identity">
             <Field label="Owner name" required value={form.name} error={errors.name} placeholder="Enter owner name" onChange={(value) => update('name', value)} />
             <Field label="Owner code" value={form.code} error={errors.code} placeholder="Enter owner code" onChange={(value) => update('code', value)} />
-            <SelectField label="Owner type" required value={form.type} error={errors.type} placeholder="Select owner type" options={ownerTypes} onChange={(value) => update('type', value)} />
-            <Field label="Identity / registration no." value={form.identity} placeholder="Enter identity / registration no." onChange={(value) => update('identity', value)} />
+            <SelectField label="Owner type" required value={form.ownerType} error={errors.ownerType} placeholder="Select owner type" options={ownerTypes} onChange={(value) => update('ownerType', value)} />
+            <Field label="Identity / registration no." value={form.identityNo} error={errors.identityNo} placeholder="Enter identity / registration no." onChange={(value) => update('identityNo', value)} />
           </FormCard>
 
           <FormCard title="Contact and address">
-            <Field label="Email" type="email" value={form.email} error={errors.email} placeholder="Enter email" onChange={(value) => update('email', value)} />
-            <Field label="Phone" value={form.phone} placeholder="Enter phone" onChange={(value) => update('phone', value)} />
-            <Field label="Address" value={form.address} placeholder="Enter address" onChange={(value) => update('address', value)} />
-            <Field label="Country of registration" value={form.country} placeholder="Enter country of registration" onChange={(value) => update('country', value)} />
+            <Field label="Email" required type="email" value={form.email} error={errors.email} placeholder="Enter email" onChange={(value) => update('email', value)} />
+            <Field label="Phone" value={form.phone} error={errors.phone} placeholder="Enter phone" onChange={(value) => update('phone', value)} />
+            <Field label="Address" value={form.address} error={errors.address} placeholder="Enter address" onChange={(value) => update('address', value)} />
+            <Field label="Country of registration" value={form.country} error={errors.country} placeholder="Enter country of registration" onChange={(value) => update('country', value)} />
+            <SelectField label="Branch" value={form.branchId} error={errors.branchId} placeholder="Select branch" options={branchOptions} onChange={(value) => update('branchId', value)} />
           </FormCard>
 
           <FormCard title="Ownership and authority">
             <Field label="Ownership share" required value={form.share} error={errors.share} placeholder="Enter ownership share" onChange={(value) => update('share', value)} />
-            <Field label="Capital commitment" value={form.capitalCommitment} placeholder="Enter capital commitment" onChange={(value) => update('capitalCommitment', value)} />
-            <Field label="Effective date" value={form.effectiveDate} placeholder="Select date" onChange={(value) => update('effectiveDate', value)} />
-            <Field label="Capital account" value={form.capitalAccount} placeholder="Enter capital account" onChange={(value) => update('capitalAccount', value)} />
-            <Field label="Authorized signatory" value={form.signatory} placeholder="Enter authorized signatory" onChange={(value) => update('signatory', value)} />
-            <SelectField label="Status" value={form.status} placeholder="Select status" options={ownerStatuses} onChange={(value) => update('status', value)} />
+            <Field label="Capital commitment" value={form.capitalCommitment} error={errors.capitalCommitment} placeholder="Enter capital commitment" onChange={(value) => update('capitalCommitment', value)} />
+            <Field label="Effective date" type="date" value={form.effectiveDate} error={errors.effectiveDate} onChange={(value) => update('effectiveDate', value)} />
+            <Field label="Capital account" value={form.capitalAccount} error={errors.capitalAccount} placeholder="Enter capital account" onChange={(value) => update('capitalAccount', value)} />
+            <Field label="Authorized signatory" value={form.signatory} error={errors.signatory} placeholder="Enter authorized signatory" onChange={(value) => update('signatory', value)} />
+            <SelectField label="Status" value={form.status} error={errors.status} options={ownerStatuses} onChange={(value) => update('status', value)} />
             <div className="rounded-xl bg-[#eef4ff] px-4 py-3.5 md:col-span-2">
               <p className="text-[13px] font-semibold text-[#2f6fed]">Ownership validation</p>
-              <p className="mt-1 text-[13px] leading-5 text-slate-600">{allocationMessage(allocated)}</p>
+              <p className="mt-1 text-[13px] leading-5 text-slate-600">
+                {allocated == null ? ownerSummary : allocationMessage(allocated)}
+              </p>
             </div>
           </FormCard>
 
-          <FormCard title="Documents and notes">
-            <Field label="Document type" value={form.documentType} placeholder="Identity / registration" onChange={(value) => update('documentType', value)} />
-            <Field label="Document reference" value={form.documentReference} placeholder="Enter document reference" onChange={(value) => update('documentReference', value)} />
-            <div className="md:col-span-2">
-              <span className="text-sm text-slate-700">Upload document</span>
-              <p className="mt-1 text-[13px] text-slate-400">
-                PDF, JPG or PNG ·{' '}
-                <button type="button" onClick={() => fileRef.current?.click()} className="font-medium text-[#2f6fed]">
-                  Choose a file
-                </button>{' '}
-                to attach supporting evidence.
-              </p>
-              <input
-                ref={fileRef}
-                type="file"
-                accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png"
-                className="hidden"
-                onChange={(event) => onFile(event.target.files?.[0])}
-              />
-              {form.fileName && <p className="mt-1 text-sm text-slate-700">{form.fileName}</p>}
-              {errors.fileName && <p className="mt-1 text-xs text-rose-500">{errors.fileName}</p>}
-            </div>
+          <FormCard title="Notes">
             <label className="block md:col-span-2">
               <span className="text-sm text-slate-700">Internal notes</span>
               <textarea
@@ -243,8 +164,11 @@ function AddOwnerPage() {
                 rows={3}
                 placeholder="Add remarks for authorized workspace administrators"
                 onChange={(event) => update('notes', event.target.value)}
-                className="mt-1.5 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 outline-none placeholder:text-slate-400 focus:border-sky-400"
+                className={`mt-1.5 w-full rounded-lg border bg-white px-3 py-2 text-sm text-slate-800 outline-none placeholder:text-slate-400 focus:border-sky-400 ${
+                  errors.notes ? 'border-rose-300' : 'border-slate-200'
+                }`}
               />
+              {errors.notes && <p className="mt-1 text-xs text-rose-500">{errors.notes}</p>}
             </label>
           </FormCard>
 
@@ -256,13 +180,18 @@ function AddOwnerPage() {
             >
               Cancel
             </button>
-            <button type="submit" className="cursor-pointer rounded-lg bg-[#2f6fed] px-4 py-2 text-sm font-medium text-white">
-              Save Owner
+            <button
+              type="submit"
+              disabled={createOwner.isPending}
+              className="cursor-pointer rounded-lg bg-[#2f6fed] px-4 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {createOwner.isPending ? 'Saving...' : 'Save Owner'}
             </button>
             <button
               type="button"
+              disabled={createOwner.isPending}
               onClick={() => save(true)}
-              className="cursor-pointer rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700"
+              className="cursor-pointer rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 disabled:cursor-not-allowed disabled:opacity-60"
             >
               Save and add another
             </button>
@@ -347,8 +276,8 @@ function SelectField({ label, required = false, value, error, placeholder, optio
         >
           {placeholder && <option value="">{placeholder}</option>}
           {options.map((option) => (
-            <option key={option} value={option}>
-              {option}
+            <option key={option.value} value={option.value}>
+              {option.label}
             </option>
           ))}
         </select>

@@ -1,21 +1,96 @@
-import { useSyncExternalStore } from 'react'
-
-const seedCodes = ['OWN-001', 'OWN-002']
-
 export const ownerSummary =
   'Effective ownership must total 100%. Record changes with an effective date and retain previous ownership history.'
 
 export const ownerAccess = 'Owner status does not automatically grant ERP access or signing authority.'
 
-export const ownerTypes = ['Individual', 'Corporate']
-export const ownerStatuses = ['Active', 'Inactive']
+export const ownerTypes = [
+  { value: 'individual', label: 'Individual' },
+  { value: 'corporate', label: 'Corporate' },
+]
 
-let addedOwners = []
-let ownerOverrides = {}
-const listeners = new Set()
+export const ownerStatuses = [
+  { value: 'active', label: 'Active' },
+  { value: 'inactive', label: 'Inactive' },
+]
 
-function emit() {
-  listeners.forEach((listener) => listener())
+export const apiFields = {
+  name: 'name',
+  code: 'code',
+  ownerType: 'ownerType',
+  identityNo: 'identityNo',
+  email: 'email',
+  phone: 'phone',
+  address: 'address',
+  countryOfRegistration: 'country',
+  branchId: 'branchId',
+  ownershipPercentage: 'share',
+  capitalCommitment: 'capitalCommitment',
+  effectiveDate: 'effectiveDate',
+  capitalAccount: 'capitalAccount',
+  authorizedSignatory: 'signatory',
+  notes: 'notes',
+  status: 'status',
+}
+
+export function idOf(value) {
+  if (!value) return ''
+  if (typeof value === 'string') return value
+  return value._id || ''
+}
+
+export function dateInput(value) {
+  if (!value) return ''
+  const text = String(value)
+  if (/^\d{4}-\d{2}-\d{2}/.test(text)) return text.slice(0, 10)
+  const date = new Date(text)
+  if (Number.isNaN(date.getTime())) return ''
+  return date.toISOString().slice(0, 10)
+}
+
+export function display(value, empty = '—') {
+  const text = String(value ?? '').trim()
+  return text || empty
+}
+
+export function formatDate(value) {
+  if (!value) return '—'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return display(value)
+  return date.toLocaleDateString('en-US', {
+    month: 'short',
+    day: '2-digit',
+    year: 'numeric',
+  })
+}
+
+export function titleFromValue(value) {
+  const text = String(value || '').replace(/[_-]+/g, ' ').trim()
+  if (!text) return '—'
+  return text.replace(/\b\w/g, (char) => char.toUpperCase())
+}
+
+export function statusText(record) {
+  if (record?.statusLabel) return record.statusLabel
+  if (!record?.status) return '—'
+  return titleFromValue(record.status)
+}
+
+export function statusClassName(status) {
+  const value = String(status || '').toLowerCase()
+  if (value === 'active') return 'bg-[#e7f8ee] text-[#1f9d57]'
+  if (value === 'inactive') return 'bg-[#eef1f4] text-[#8b95a5]'
+  return 'bg-slate-100 text-slate-500'
+}
+
+export function withOption(options, value, label) {
+  if (!value || options.some((option) => option.value === value)) return options
+  return [{ value, label: label || titleFromValue(value) }, ...options]
+}
+
+export function branchNameOf(owner) {
+  const branch = owner?.branchId
+  if (branch && typeof branch === 'object') return branch.name || branch.code || ''
+  return ''
 }
 
 export function parseShare(value) {
@@ -23,10 +98,15 @@ export function parseShare(value) {
   return Number.isFinite(number) ? number : 0
 }
 
-export function formatShare(value) {
-  const text = String(value ?? '').trim()
-  if (!text) return ''
-  const number = parseShare(text)
+export function numericText(value) {
+  const text = String(value ?? '').replace(/[^\d.]/g, '')
+  if (!text || text === '.') return ''
+  return text
+}
+
+export function formatPercent(value) {
+  if (value == null || String(value).trim() === '') return '—'
+  const number = parseShare(value)
   const rounded = Math.round(number * 10) / 10
   const shown = Number.isInteger(rounded) ? String(rounded) : String(rounded)
   return `${shown}%`
@@ -38,113 +118,159 @@ export function parseMoney(value) {
 }
 
 export function formatMoney(amount) {
-  return `PKR ${Math.round(amount).toLocaleString('en-US')}`
+  return `PKR ${Math.round(parseMoney(amount)).toLocaleString('en-US')}`
+}
+
+export function displayMoney(value) {
+  if (value == null || String(value).trim() === '') return '—'
+  return formatMoney(value)
 }
 
 export function formatPledged(amount) {
-  if (amount >= 1000000) {
-    const millions = amount / 1000000
+  const value = parseMoney(amount)
+  if (value >= 1000000) {
+    const millions = value / 1000000
     const shown = Number.isInteger(millions) ? String(millions) : millions.toFixed(1)
     return `PKR ${shown}m`
   }
-  return formatMoney(amount)
-}
-
-export function formatPercent(number) {
-  const rounded = Math.round(number * 10) / 10
-  const shown = Number.isInteger(rounded) ? String(rounded) : String(rounded)
-  return `${shown}%`
+  return formatMoney(value)
 }
 
 export function allocationMessage(percent) {
-  if (percent >= 100) {
-    return 'Current allocation is 100%. Adjust effective ownership before adding an additional claim.'
+  const shown = formatPercent(percent)
+  return `Current allocation is ${shown}. Adjust effective ownership before adding an additional claim.`
+}
+
+function mapInterest(item, index) {
+  return {
+    id: item._id || `interest-${index}`,
+    entity: item.entity || '',
+    share: formatPercent(item.share),
+    committed: displayMoney(item.committed),
+    paidIn: displayMoney(item.paidIn),
+    effectiveDate: item.effectiveDate ? formatDate(item.effectiveDate) : '—',
   }
-  return `Current allocation is ${formatPercent(percent)}. Adjust effective ownership before adding an additional claim.`
 }
 
-export function allocatedShare(owners, ignoreId = '') {
-  return owners
-    .filter((owner) => owner.id !== ignoreId)
-    .reduce((total, owner) => total + parseShare(owner.share), 0)
-}
-
-export function buildInterests(form, code, previous = []) {
-  const share = formatShare(form.share)
-  const committed = String(form.capitalCommitment || '').trim()
-  if (!share && !committed) return previous
-  const existing = previous[0]
-  const interest = {
-    id: existing?.id || `${code}-interest`,
-    entity: existing?.entity || 'Central Trading',
-    share: share || existing?.share || '',
-    committed: committed || existing?.committed || '',
-    paidIn: existing?.paidIn && existing.paidIn !== '—' ? existing.paidIn : existing?.paidIn || '—',
-    effectiveDate: String(form.effectiveDate || '').trim() || existing?.effectiveDate || 'Current',
+function mapAllocation(allocation) {
+  if (!allocation) return null
+  return {
+    id: 'total-allocated',
+    entity: allocation.entity || 'Total allocated',
+    share: formatPercent(allocation.share),
+    committed: displayMoney(allocation.committed),
+    paidIn: displayMoney(allocation.paidIn),
+    effectiveDate: allocation.effectiveLabel || formatDate(allocation.effectiveDate),
   }
-  return [interest, ...previous.slice(1)]
 }
 
-export function getAddedOwners() {
-  return addedOwners
-}
-
-export function addOwnerRecord(owner) {
-  addedOwners = [owner, ...addedOwners]
-  emit()
-  return owner
-}
-
-export function getOwnerOverrides() {
-  return ownerOverrides
-}
-
-export function updateOwnerRecord(owner) {
-  const index = addedOwners.findIndex((item) => item.id === owner.id)
-  if (index >= 0) {
-    addedOwners = addedOwners.map((item) => (item.id === owner.id ? owner : item))
-  } else {
-    ownerOverrides = { ...ownerOverrides, [owner.id]: owner }
+export function mapOwner(owner) {
+  const interests = (owner.interests || []).map(mapInterest)
+  const allocation = mapAllocation(owner.allocation)
+  return {
+    id: owner._id,
+    code: owner.code || '',
+    name: owner.name || '',
+    type: owner.ownerTypeLabel || titleFromValue(owner.ownerType),
+    identity: owner.identityNo || '',
+    email: owner.email || '',
+    phone: owner.phone || '',
+    address: owner.address || '',
+    country: owner.countryOfRegistration || '',
+    share: formatPercent(owner.ownershipPercentage),
+    capitalCommitment: displayMoney(owner.capitalCommitment),
+    effectiveDate: formatDate(owner.effectiveDate),
+    capitalAccount: owner.capitalAccount || '',
+    signatory: owner.authorizedSignatory || '',
+    status: statusText(owner),
+    statusValue: owner.status || '',
+    branch: branchNameOf(owner),
+    notes: owner.notes || '',
+    createdOn: formatDate(owner.createdAt),
+    updatedOn: formatDate(owner.updatedAt),
+    summary: ownerSummary,
+    access: ownerAccess,
+    interests: allocation ? [...interests, allocation] : interests,
   }
-  emit()
-  return owner
 }
 
-export function mergeOwnerRegister(added = [], seed = [], overrides = ownerOverrides) {
-  return [...added, ...seed].map((owner) => (overrides[owner.id] ? { ...owner, ...overrides[owner.id] } : owner))
-}
-
-export function ownerCodeTaken(code, ignoreCode = '') {
-  const value = String(code || '').trim().toLowerCase()
-  const ignore = String(ignoreCode || '').trim().toLowerCase()
-  if (!value || value === ignore) return false
-  const overrideCodes = Object.values(ownerOverrides).map((owner) => owner.code)
-  return (
-    seedCodes.some((item) => item.toLowerCase() === value) ||
-    addedOwners.some((owner) => owner.code.toLowerCase() === value && owner.code.toLowerCase() !== ignore) ||
-    overrideCodes.some((item) => String(item).toLowerCase() === value && String(item).toLowerCase() !== ignore)
-  )
-}
-
-export function nextOwnerCode() {
-  let number = 1
-  let code = 'OWN-001'
-  while (ownerCodeTaken(code)) {
-    number += 1
-    code = `OWN-${String(number).padStart(3, '0')}`
+export function formFromOwner(owner) {
+  return {
+    name: owner.name || '',
+    code: owner.code || '',
+    ownerType: owner.ownerType || '',
+    identityNo: owner.identityNo || '',
+    email: owner.email || '',
+    phone: owner.phone || '',
+    address: owner.address || '',
+    country: owner.countryOfRegistration || '',
+    branchId: idOf(owner.branchId),
+    share: numericText(owner.ownershipPercentage),
+    capitalCommitment: numericText(owner.capitalCommitment),
+    effectiveDate: dateInput(owner.effectiveDate),
+    capitalAccount: owner.capitalAccount || '',
+    signatory: owner.authorizedSignatory || '',
+    status: owner.status || 'active',
+    notes: owner.notes || '',
   }
-  return code
 }
 
-function subscribe(listener) {
-  listeners.add(listener)
-  return () => listeners.delete(listener)
+function interestBody(item) {
+  return {
+    entity: item.entity || '',
+    share: numericText(item.share),
+    committed: numericText(item.committed),
+    paidIn: numericText(item.paidIn),
+    effectiveDate: dateInput(item.effectiveDate),
+  }
 }
 
-export function useAddedOwners() {
-  return useSyncExternalStore(subscribe, getAddedOwners, getAddedOwners)
+export function toOwnerBody(form, existingInterests = []) {
+  const share = numericText(form.share)
+  const committed = numericText(form.capitalCommitment)
+  const effectiveDate = form.effectiveDate || ''
+  let interests = existingInterests.map(interestBody).filter((item) => item.entity)
+
+  if (interests.length === 1) {
+    interests = [
+      {
+        ...interests[0],
+        share: share || interests[0].share,
+        committed: committed || interests[0].committed,
+        effectiveDate: effectiveDate || interests[0].effectiveDate,
+      },
+    ]
+  }
+
+  return {
+    name: form.name.trim(),
+    code: form.code.trim(),
+    ownerType: form.ownerType,
+    identityNo: form.identityNo.trim(),
+    email: form.email.trim(),
+    phone: form.phone.trim(),
+    address: form.address.trim(),
+    countryOfRegistration: form.country.trim(),
+    branchId: form.branchId,
+    ownershipPercentage: share,
+    capitalCommitment: committed,
+    effectiveDate,
+    capitalAccount: form.capitalAccount.trim(),
+    authorizedSignatory: form.signatory.trim(),
+    notes: form.notes.trim(),
+    status: form.status || 'active',
+    ...(interests.length ? { interests } : {}),
+  }
 }
 
-export function useOwnerOverrides() {
-  return useSyncExternalStore(subscribe, getOwnerOverrides, getOwnerOverrides)
+export function applyOwnerErrors(error, setErrors) {
+  const apiErrors = error.response?.data?.errors
+  if (!Array.isArray(apiErrors)) return
+  const fieldErrors = {}
+  apiErrors.forEach((item) => {
+    const field = String(item.field || '')
+    const key = field.startsWith('interests') ? 'share' : apiFields[field] || field
+    if (key && !fieldErrors[key]) fieldErrors[key] = item.message
+  })
+  setErrors((current) => ({ ...current, ...fieldErrors }))
 }
