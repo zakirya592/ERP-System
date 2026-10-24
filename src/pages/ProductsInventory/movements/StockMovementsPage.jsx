@@ -1,13 +1,31 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { ChevronDown, Search } from 'lucide-react'
 import { Link, useNavigate } from 'react-router-dom'
 import { toast } from 'react-toastify'
 import ExportButton from '../../../components/ExportButton.jsx'
 import GlobalTable from '../../../components/GlobalTable.jsx'
+import { getStockMovements } from '../../../api/stockMovements.api.js'
+import { useBranches } from '../../../queries/branches/branches.queries.js'
+import { useStockMovement, useStockMovements } from '../../../queries/stockMovements/stockMovements.queries.js'
+import { useWarehouses } from '../../../queries/warehouses/warehouses.queries.js'
+import { fetchAllPages } from '../../../utils/exportExcel.js'
 import InventoryTabs from '../InventoryTabs.jsx'
-import { formatPkr, formatPosted, movementTypes, movements, todayInput } from './movementRecords.js'
+import {
+  formatPkr,
+  formatPosted,
+  movementQty,
+  movementTypeOptions,
+  refName,
+  unitLabel,
+} from './movementRecords.js'
+
+const limit = 20
 
 const typeClass = {
+  purchase: 'text-emerald-600',
+  sale: 'text-sky-600',
+  transfer: 'text-amber-600',
+  adjustment: 'text-violet-600',
   Purchase: 'text-emerald-600',
   Sale: 'text-sky-600',
   Transfer: 'text-amber-600',
@@ -17,41 +35,60 @@ const typeClass = {
 function movementColumns(selectedId) {
   return [
     {
-      key: 'postedAt',
+      key: 'movementDate',
       label: 'Movement date',
       className: 'uppercase tracking-wide',
-      exportValue: (item) => formatPosted(item.postedAt),
+      exportValue: (item) => formatPosted(item.movementDate),
       renderCell: (item) => (
-        <span className={`text-[13px] whitespace-nowrap ${item.id === selectedId ? 'font-medium text-[#2f6fed]' : 'text-slate-500'}`}>
-          {formatPosted(item.postedAt)}
+        <span
+          className={`text-[13px] whitespace-nowrap ${
+            item.id === selectedId ? 'font-medium text-[#2f6fed]' : 'text-slate-500'
+          }`}
+        >
+          {formatPosted(item.movementDate)}
         </span>
       ),
     },
     {
-      key: 'reference',
+      key: 'referenceNumber',
       label: 'Reference',
       className: 'uppercase tracking-wide',
-      renderCell: (item) => <span className="font-mono text-[12px] text-slate-500">{item.reference}</span>,
+      exportValue: (item) => item.referenceNumber || item.movementNumber || '',
+      renderCell: (item) => (
+        <span className="font-mono text-[12px] text-slate-500">
+          {item.referenceNumber || item.movementNumber || '—'}
+        </span>
+      ),
     },
     {
-      key: 'product',
+      key: 'productName',
       label: 'Product',
       className: 'uppercase tracking-wide',
       isRowHeader: true,
-      renderCell: (item) => <span className="text-[13px] font-medium text-slate-800">{item.product}</span>,
+      renderCell: (item) => <span className="text-[13px] font-medium text-slate-800">{item.productName || '—'}</span>,
     },
     {
-      key: 'location',
+      key: 'warehouse',
       label: 'Location',
       className: 'uppercase tracking-wide',
-      renderCell: (item) => <span className="text-[13px] text-slate-500">{item.location}</span>,
+      exportValue: (item) => refName(item.warehouseId),
+      renderCell: (item) => (
+        <span className="text-[13px] text-slate-500">{refName(item.warehouseId) || '—'}</span>
+      ),
     },
     {
-      key: 'type',
+      key: 'movementType',
       label: 'Type',
       className: 'uppercase tracking-wide',
+      exportValue: (item) => item.movementTypeLabel || item.movementType || '',
       renderCell: (item) => (
-        <span className={`text-[13px] font-medium ${typeClass[item.type] || 'text-slate-500'}`}>{item.type}</span>
+        <span
+          className={`text-[13px] font-medium ${
+            typeClass[item.movementType] || typeClass[item.movementTypeLabel] || 'text-slate-500'
+          }`}
+        >
+          {item.movementTypeLabel || item.movementType || '—'}
+        </span>
       ),
     },
     {
@@ -59,79 +96,145 @@ function movementColumns(selectedId) {
       label: 'Qty',
       className: 'text-right uppercase tracking-wide',
       cellClassName: 'text-right',
-      renderCell: (item) => (
-        <span className={`text-[13px] font-medium ${item.qty < 0 ? 'text-rose-500' : 'text-emerald-600'}`}>
-          {item.qty > 0 ? `+${item.qty}` : item.qty}
-        </span>
-      ),
+      exportValue: (item) => movementQty(item),
+      renderCell: (item) => {
+        const qty = movementQty(item)
+        return (
+          <span className={`text-[13px] font-medium ${qty < 0 ? 'text-rose-500' : 'text-emerald-600'}`}>
+            {qty > 0 ? `+${qty}` : qty}
+          </span>
+        )
+      },
     },
     {
       key: 'unit',
       label: 'Unit',
       className: 'uppercase tracking-wide',
-      renderCell: (item) => <span className="text-[13px] text-slate-500">{item.unit}</span>,
+      exportValue: (item) => unitLabel(item.unit),
+      renderCell: (item) => <span className="text-[13px] text-slate-500">{unitLabel(item.unit)}</span>,
     },
     {
-      key: 'value',
+      key: 'lineValue',
       label: 'Value (PKR)',
       className: 'text-right uppercase tracking-wide',
       cellClassName: 'text-right',
-      renderCell: (item) => <span className="text-[13px] text-slate-700">{formatPkr(item.value)}</span>,
+      exportValue: (item) => item.lineValue ?? '',
+      renderCell: (item) => <span className="text-[13px] text-slate-700">{formatPkr(item.lineValue)}</span>,
     },
     {
       key: 'user',
       label: 'User',
       className: 'uppercase tracking-wide',
-      renderCell: (item) => <span className="text-[13px] text-slate-500">{item.user}</span>,
+      exportValue: (item) => refName(item.createdBy),
+      renderCell: (item) => (
+        <span className="text-[13px] text-slate-500">{refName(item.createdBy) || '—'}</span>
+      ),
     },
   ]
 }
 
 function StockMovementsPage() {
   const navigate = useNavigate()
+  const [page, setPage] = useState(1)
   const [query, setQuery] = useState('')
-  const [branch, setBranch] = useState('Central Branch')
-  const [warehouse, setWarehouse] = useState('All warehouses')
-  const [type, setType] = useState('All movement types')
-  const [date, setDate] = useState(todayInput())
-  const [selectedId, setSelectedId] = useState(movements[0].id)
-
-  const branches = useMemo(
-    () => ['All branches', ...new Set(movements.map((item) => item.branch))],
-    [],
-  )
-  const warehouses = useMemo(
-    () => ['All warehouses', ...new Set(movements.map((item) => item.location))],
-    [],
-  )
-
-  const filtered = useMemo(() => {
-    const needle = query.trim().toLowerCase()
-    return movements.filter((item) => {
-      const matchesQuery =
-        !needle ||
-        item.product.toLowerCase().includes(needle) ||
-        item.reference.toLowerCase().includes(needle) ||
-        item.user.toLowerCase().includes(needle)
-      const matchesBranch = branch === 'All branches' || item.branch === branch
-      const matchesWarehouse = warehouse === 'All warehouses' || item.location === warehouse
-      const matchesType = type === 'All movement types' || item.type === type
-      const matchesDate = !date || item.date === date
-      return matchesQuery && matchesBranch && matchesWarehouse && matchesType && matchesDate
-    })
-  }, [query, branch, warehouse, type, date])
+  const [debouncedSearch, setDebouncedSearch] = useState('')
+  const [branchId, setBranchId] = useState('')
+  const [warehouseId, setWarehouseId] = useState('')
+  const [movementType, setMovementType] = useState('')
+  const [selectedId, setSelectedId] = useState('')
 
   useEffect(() => {
-    if (!filtered.some((item) => item.id === selectedId)) {
-      setSelectedId(filtered[0]?.id || '')
-    }
-  }, [filtered, selectedId])
+    const timer = setTimeout(() => setDebouncedSearch(query.trim()), 300)
+    return () => clearTimeout(timer)
+  }, [query])
 
-  const selected = movements.find((item) => item.id === selectedId) || null
-  const quantityIn = filtered.filter((item) => item.qty > 0).reduce((sum, item) => sum + item.qty, 0)
-  const quantityOut = filtered.filter((item) => item.qty < 0).reduce((sum, item) => sum + Math.abs(item.qty), 0)
-  const net = quantityIn - quantityOut
+  useEffect(() => {
+    setPage(1)
+  }, [debouncedSearch, branchId, warehouseId, movementType])
+
+  useEffect(() => {
+    setWarehouseId('')
+  }, [branchId])
+
+  const listParams = {
+    page,
+    limit,
+    search: debouncedSearch,
+    branchId,
+    warehouseId,
+    productId: '',
+    movementType,
+  }
+
+  const movementsQuery = useStockMovements(listParams)
+  const detailQuery = useStockMovement(selectedId)
+  const branchesQuery = useBranches({ page: 1, limit: 100, search: '', status: '' })
+  const warehousesQuery = useWarehouses({
+    page: 1,
+    limit: 100,
+    search: '',
+    status: '',
+    branchId,
+  })
+
+  const movements = (movementsQuery.data?.data || []).map((item) => ({ ...item, id: item._id }))
+  const total = movementsQuery.data?.meta?.total ?? 0
+  const summaryMeta = movementsQuery.data?.meta?.summary || null
+  const selected = detailQuery.data?.data || movements.find((item) => item.id === selectedId) || null
+  const sourceTrace = selected?.sourceTrace || null
+
+  const quantityIn = Number(summaryMeta?.quantityIn) || 0
+  const quantityOut = Number(summaryMeta?.quantityOut) || 0
+  const net = Number(summaryMeta?.netMovement)
+  const netValue = Number.isNaN(net) ? quantityIn - quantityOut : net
+  const movementsToday = summaryMeta?.movementsToday ?? total
+
+  const rangeStart = total === 0 ? 0 : (page - 1) * limit + 1
+  const rangeEnd = Math.min(page * limit, total)
+  const tableSummary =
+    total <= limit
+      ? `Showing all ${total} ${total === 1 ? 'movement' : 'movements'}`
+      : `Showing ${rangeStart} to ${rangeEnd} of ${total} movements`
+
+  useEffect(() => {
+    if (!movements.length) {
+      setSelectedId('')
+      return
+    }
+    if (!movements.some((item) => item.id === selectedId)) {
+      setSelectedId(movements[0].id)
+    }
+  }, [movements, selectedId])
+
   const columns = movementColumns(selectedId)
+  const branchOptions = [
+    {
+      label: branchesQuery.isError
+        ? 'Could not load branches'
+        : branchesQuery.isLoading
+          ? 'Loading branches...'
+          : 'All branches',
+      value: '',
+    },
+    ...(branchesQuery.data?.data || []).map((branch) => ({
+      value: branch._id,
+      label: branch.name,
+    })),
+  ]
+  const warehouseOptions = [
+    {
+      label: warehousesQuery.isError
+        ? 'Could not load warehouses'
+        : warehousesQuery.isLoading
+          ? 'Loading warehouses...'
+          : 'All warehouses',
+      value: '',
+    },
+    ...(warehousesQuery.data?.data || []).map((warehouse) => ({
+      value: warehouse._id,
+      label: warehouse.name,
+    })),
+  ]
 
   return (
     <div className="space-y-4">
@@ -150,7 +253,8 @@ function StockMovementsPage() {
           </nav>
           <h1 className="mt-1 text-[32px] leading-none font-semibold tracking-tight text-slate-900">Stock Movements</h1>
           <p className="mt-2 max-w-2xl text-sm text-slate-500">
-            Track every inventory movement posted from purchases, sales, transfers, and adjustments. All quantities and values are saved in PKR.
+            Track every inventory movement posted from purchases, sales, transfers, and adjustments. All quantities and
+            values are saved in PKR.
           </p>
         </div>
         <ExportButton
@@ -158,25 +262,33 @@ function StockMovementsPage() {
           sheetName="Stock Movements"
           label="Export Movements"
           columns={columns}
-          rows={filtered}
+          loadRows={() =>
+            fetchAllPages(getStockMovements, {
+              search: debouncedSearch,
+              branchId,
+              warehouseId,
+              productId: '',
+              movementType,
+            })
+          }
         />
       </div>
 
       <InventoryTabs />
 
       <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+        <Metric label="Movements today" value={String(movementsToday)} hint="posted in PKR" />
         <Metric
-          label={date === todayInput() ? 'Movements today' : 'Movements'}
-          value={String(filtered.length)}
-          hint="posted in PKR"
+          label="Quantity in"
+          value={quantityIn.toLocaleString('en-US')}
+          hint={summaryMeta?.warehouseName ? summaryMeta.warehouseName : 'from purchases'}
         />
-        <Metric label="Quantity in" value={quantityIn.toLocaleString('en-US')} hint="from purchases" />
         <Metric label="Quantity out" value={quantityOut.toLocaleString('en-US')} hint="from sales" />
         <Metric
           label="Net movement"
-          value={`${net > 0 ? '+' : ''}${net.toLocaleString('en-US')}`}
+          value={`${netValue > 0 ? '+' : ''}${netValue.toLocaleString('en-US')}`}
           hint="in minus out"
-          valueClassName={net < 0 ? 'text-rose-500' : 'text-emerald-600'}
+          valueClassName={netValue < 0 ? 'text-rose-500' : 'text-emerald-600'}
         />
       </section>
 
@@ -184,7 +296,7 @@ function StockMovementsPage() {
         <div className="border-b border-slate-100 px-5 py-4">
           <h2 className="text-base font-semibold text-slate-900">Movement register</h2>
           <p className="mt-0.5 text-sm text-slate-400">
-            Search by product or document. Filter by branch, warehouse, type, and date. Values are shown in PKR.
+            Search by product or document. Filter by branch, warehouse, and type. Values are shown in PKR.
           </p>
         </div>
 
@@ -198,28 +310,41 @@ function StockMovementsPage() {
               className="w-full rounded-lg border border-slate-200 py-2 pr-3 pl-9 text-sm outline-none focus:border-sky-400"
             />
           </label>
-          <FilterSelect value={branch} onChange={setBranch} ariaLabel="Branch" options={branches} />
-          <FilterSelect value={warehouse} onChange={setWarehouse} ariaLabel="Warehouse" options={warehouses} />
-          <FilterSelect value={type} onChange={setType} ariaLabel="Movement type" options={['All movement types', ...movementTypes]} />
-          <input
-            type="date"
-            aria-label="Movement date"
-            value={date}
-            onChange={(event) => setDate(event.target.value)}
-            className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:border-sky-400"
+          <FilterSelect value={branchId} onChange={setBranchId} ariaLabel="Branch" options={branchOptions} />
+          <FilterSelect
+            value={warehouseId}
+            onChange={setWarehouseId}
+            ariaLabel="Warehouse"
+            options={warehouseOptions}
+          />
+          <FilterSelect
+            value={movementType}
+            onChange={setMovementType}
+            ariaLabel="Movement type"
+            options={movementTypeOptions}
           />
         </div>
 
         <GlobalTable
           ariaLabel="Movement register"
           columns={columns}
-          data={filtered}
+          data={movements}
           pagination
-          rowsPerPage={8}
+          rowsPerPage={limit}
+          page={page}
+          totalCount={total}
+          onPageChange={setPage}
+          summary={tableSummary}
           className="h-auto! max-h-none!"
           contentClassName="min-w-[980px]"
           onRowPress={(item) => setSelectedId(item.id)}
-          emptyContent="No movements match these filters."
+          emptyContent={
+            movementsQuery.isError
+              ? movementsQuery.error.response?.data?.message || 'Could not load stock movements.'
+              : movementsQuery.isLoading
+                ? 'Loading movements...'
+                : 'No movements match these filters.'
+          }
           rowClassName={(item) =>
             item.id === selectedId
               ? 'row-selected cursor-pointer border-b border-slate-100'
@@ -231,18 +356,42 @@ function StockMovementsPage() {
       <section className="grid items-start gap-4 lg:grid-cols-2">
         <article className="rounded-2xl border border-slate-200/80 bg-white px-5 py-4 shadow-sm">
           <h2 className="text-sm font-semibold text-slate-900">Source trace</h2>
-          {selected ? (
+          {detailQuery.isLoading && selectedId ? (
+            <p className="mt-3 text-sm text-slate-400">Loading source trace...</p>
+          ) : detailQuery.isError ? (
+            <p className="mt-3 text-sm text-rose-500">
+              {detailQuery.error.response?.data?.message || 'Could not load this movement.'}
+            </p>
+          ) : selected ? (
             <>
-              <p className="mt-1 text-sm text-slate-500">Posted by {selected.user}</p>
+              <p className="mt-1 text-sm text-slate-500">
+                {selected.movementTypeDetailLabel
+                  ? selected.movementTypeDetailLabel
+                  : `Posted by ${sourceTrace?.createdByName || refName(selected.createdBy) || '—'}`}
+              </p>
               <dl className="mt-4 space-y-3 text-sm">
-                <Trace label="Branch" value={selected.branch} />
-                <Trace label="Warehouse" value={selected.location} />
-                <Trace label="Document" value={selected.reference} mono />
-                <Trace label="Posted" value={formatPosted(selected.postedAt)} />
+                <Trace label="Branch" value={refName(selected.branchId) || '—'} />
+                <Trace label="Warehouse" value={refName(selected.warehouseId) || '—'} />
+                <Trace
+                  label="Document"
+                  value={sourceTrace?.referenceNumber || selected.referenceNumber || selected.movementNumber || '—'}
+                  mono
+                />
+                <Trace
+                  label="Posted"
+                  value={formatPosted(sourceTrace?.movementDate || selected.movementDate)}
+                />
+                {(sourceTrace?.ledgerNumber || selected.ledgerNumber) && (
+                  <Trace label="Ledger" value={sourceTrace?.ledgerNumber || selected.ledgerNumber} mono />
+                )}
               </dl>
               <button
                 type="button"
-                onClick={() => toast.info(`${selected.reference} is the source document for this movement.`)}
+                onClick={() =>
+                  toast.info(
+                    `${sourceTrace?.referenceNumber || selected.referenceNumber || selected.movementNumber} is the source document for this movement.`,
+                  )
+                }
                 className="mt-4 cursor-pointer text-sm font-medium text-[#2f6fed]"
               >
                 Open source document
@@ -257,7 +406,8 @@ function StockMovementsPage() {
           <h2 className="text-sm font-semibold text-slate-900">Movement-based inventory</h2>
           <p className="mt-1 text-sm font-medium text-slate-700">Stock is not edited directly</p>
           <p className="mt-2 text-sm leading-6 text-slate-500">
-            Every purchase, sale, transfer, and adjustment posts a movement. The quantity on hand is the sum of those movements.
+            Every purchase, sale, transfer, and adjustment posts a movement. The quantity on hand is the sum of those
+            movements.
           </p>
           <button
             type="button"
@@ -292,7 +442,9 @@ function FilterSelect({ value, onChange, options, ariaLabel }) {
         className="w-full appearance-none rounded-lg border border-slate-200 bg-white py-2 pr-9 pl-3 text-sm text-slate-700 outline-none focus:border-sky-400 lg:w-44"
       >
         {options.map((option) => (
-          <option key={option}>{option}</option>
+          <option key={option.value || option.label} value={option.value}>
+            {option.label}
+          </option>
         ))}
       </select>
       <ChevronDown size={15} className="pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 text-slate-400" />

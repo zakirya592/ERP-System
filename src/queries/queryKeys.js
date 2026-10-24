@@ -57,4 +57,8 @@ export const queryKeys = {
     list: (params) => ['products', 'list', params],
     detail: (id) => ['products', 'detail', id],
   },
+  stockMovements: {
+    list: (params) => ['stockMovements', 'list', params],
+    detail: (id) => ['stockMovements', 'detail', id],
+  },
 }
