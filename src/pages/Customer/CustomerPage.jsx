@@ -1,10 +1,27 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Button } from '@heroui/react'
-import { Plus, Search } from 'lucide-react'
-import { useNavigate } from 'react-router-dom'
+import { Eye, Pencil, Plus, Search } from 'lucide-react'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { toast } from 'react-toastify'
 import ExportButton from '../../components/ExportButton.jsx'
 import GlobalTable from '../../components/GlobalTable.jsx'
+import { getCustomers } from '../../api/customers.api.js'
+import { useBranches } from '../../queries/branches/branches.queries.js'
+import { useCurrencies } from '../../queries/currencies/currencies.queries.js'
+import { useCustomer, useCustomers } from '../../queries/customers/customers.queries.js'
+import { fetchAllPages } from '../../utils/exportExcel.js'
+import {
+  customerAccountNote,
+  currencyLabel,
+  display,
+  formatMoney,
+  mapCustomer,
+  moneyPlain,
+  paymentTermsOptions,
+  statusClassName,
+} from './customerRecords.js'
+
+const limit = 20
 
 const tabs = [
   { key: 'customer', label: 'Customers', singular: 'Customer' },
@@ -16,442 +33,217 @@ const tabs = [
   { key: 'transporter', label: 'Transporters', singular: 'Transporter' },
 ]
 
-const parties = [
-  {
-    id: 'C-1078',
-    name: 'Coastal Café Group',
-    contact: 'Maya Reed',
-    phone: '+1 202 555 0128',
-    email: 'mia@coastalcafe.co',
-    currency: 'PKR',
-    account: '1200-0016',
-    terms: 'Net 14',
-    receivable: 18400,
-    payable: 0,
-    status: 'Active',
-    type: 'customer',
-    branch: 'Central Branch',
-    creditLimit: 25000,
-    available: 6600,
-  },
-  {
-    id: 'C-0824',
-    name: 'Harbor Retail',
-    contact: 'Adam Lewis',
-    phone: '+1 202 555 0142',
-    email: 'adam@harborretail.co',
-    currency: 'PKR',
-    account: '1200-0016',
-    terms: 'Net 30',
-    receivable: 24000,
-    payable: 0,
-    status: 'Active',
-    type: 'customer',
-    branch: 'Central Branch',
-    creditLimit: 40000,
-    available: 16000,
-  },
-  {
-    id: 'C-0931',
-    name: 'Metro Foods',
-    contact: 'Sana Aziz',
-    phone: '+1 202 555 0177',
-    email: 'sana@metrofoods.co',
-    currency: 'PKR',
-    account: '1200-0031',
-    terms: 'Net 30',
-    receivable: 16200,
-    payable: 0,
-    status: 'Active',
-    type: 'customer',
-    branch: 'Central Branch',
-    creditLimit: 30000,
-    available: 13800,
-  },
-  {
-    id: 'C-0042',
-    name: 'Airport Deli',
-    contact: 'Ryan Cole',
-    phone: '+1 202 555 0113',
-    email: 'ryan@airportdeli.co',
-    currency: 'PKR',
-    account: '1200-0042',
-    terms: 'Net 7',
-    receivable: 8400,
-    payable: 0,
-    status: 'Active',
-    type: 'customer',
-    branch: 'Central Branch',
-    creditLimit: 15000,
-    available: 6600,
-  },
-  {
-    id: 'C-0306',
-    name: 'Green Basket',
-    contact: 'Leila Noor',
-    phone: '+1 202 555 0198',
-    email: 'leila@greenbasket.co',
-    currency: 'PKR',
-    account: '1200-0042',
-    terms: 'Net 14',
-    receivable: 12840,
-    payable: 0,
-    status: 'Active',
-    type: 'customer',
-    branch: 'Central Branch',
-    creditLimit: 20000,
-    available: 7160,
-  },
-  {
-    id: 'C-0069',
-    name: 'Riverside Market',
-    contact: 'Amir Hassan',
-    phone: '+1 202 555 0166',
-    email: 'amir@riversidemarket.co',
-    currency: 'PKR',
-    account: '1200-0069',
-    terms: 'Net 30',
-    receivable: 15300,
-    payable: 0,
-    status: 'Active',
-    type: 'customer',
-    branch: 'Central Branch',
-    creditLimit: 25000,
-    available: 9700,
-  },
-  {
-    id: 'C-0073',
-    name: 'Old Town Grocer',
-    contact: 'Mehn Grant',
-    phone: '+1 202 555 0168',
-    email: 'mehn@oldtowngrocer.co',
-    currency: 'PKR',
-    account: '1200-0073',
-    terms: 'Cash',
-    receivable: 0,
-    payable: 0,
-    status: 'Active',
-    type: 'customer',
-    branch: 'Central Branch',
-    creditLimit: 0,
-    available: 0,
-  },
-  {
-    id: 'C-0188',
-    name: 'Pearl Street Market',
-    contact: 'Nadia Shah',
-    phone: '+1 202 555 0188',
-    email: 'nadia@pearlstreet.co',
-    currency: 'PKR',
-    account: '1200-0188',
-    terms: 'Net 30',
-    receivable: 7600,
-    payable: 0,
-    status: 'Active',
-    type: 'customer',
-    branch: 'Central Branch',
-    creditLimit: 18000,
-    available: 10400,
-  },
-  {
-    id: 'C-0192',
-    name: 'Cedar Lane Grocers',
-    contact: 'Owen Blake',
-    phone: '+1 202 555 0192',
-    email: 'owen@cedarlane.co',
-    currency: 'PKR',
-    account: '1200-0192',
-    terms: 'Net 14',
-    receivable: 5100,
-    payable: 0,
-    status: 'Active',
-    type: 'customer',
-    branch: 'Central Branch',
-    creditLimit: 12000,
-    available: 6900,
-  },
-  {
-    id: 'C-0114',
-    name: 'North Mill Bakery',
-    contact: 'Helen Park',
-    phone: '+1 202 555 0184',
-    email: 'helen@northmill.co',
-    currency: 'PKR',
-    account: '1200-0114',
-    terms: 'Net 14',
-    receivable: 9200,
-    payable: 0,
-    status: 'Inactive',
-    type: 'customer',
-    branch: 'North Branch',
-    creditLimit: 10000,
-    available: 800,
-  },
-  {
-    id: 'S-0210',
-    name: 'Atlas Packaging',
-    contact: 'Omar Farid',
-    phone: '+1 202 555 0201',
-    email: 'omar@atlaspack.co',
-    currency: 'PKR',
-    account: '2100-0210',
-    terms: 'Net 30',
-    receivable: 0,
-    payable: 18600,
-    status: 'Active',
-    type: 'supplier',
-    branch: 'Central Branch',
-    creditLimit: 0,
-    available: 0,
-  },
-  {
-    id: 'S-0218',
-    name: 'Valley Produce',
-    contact: 'Nora Iqbal',
-    phone: '+1 202 555 0218',
-    email: 'nora@valleyproduce.co',
-    currency: 'USD',
-    account: '2100-0218',
-    terms: 'Net 14',
-    receivable: 0,
-    payable: 4200,
-    status: 'Active',
-    type: 'supplier',
-    branch: 'North Branch',
-    creditLimit: 0,
-    available: 0,
-  },
-  {
-    id: 'E-014',
-    name: 'Hina Qureshi',
-    contact: 'Hina Qureshi',
-    phone: '+1 202 555 0144',
-    email: 'hina@erp.local',
-    currency: 'PKR',
-    account: '5100-0014',
-    terms: 'Cash',
-    receivable: 0,
-    payable: 0,
-    status: 'Active',
-    type: 'employee',
-    branch: 'Central Branch',
-    creditLimit: 0,
-    available: 0,
-  },
-  {
-    id: 'D-008',
-    name: 'Karim Delivery',
-    contact: 'Karim Shah',
-    phone: '+1 202 555 0088',
-    email: 'karim@routes.co',
-    currency: 'PKR',
-    account: '6100-0008',
-    terms: 'Cash',
-    receivable: 0,
-    payable: 1500,
-    status: 'Active',
-    type: 'driver',
-    branch: 'Central Branch',
-    creditLimit: 0,
-    available: 0,
-  },
-  {
-    id: 'P-003',
-    name: 'Blue Harbor JV',
-    contact: 'Elena Voss',
-    phone: '+1 202 555 0033',
-    email: 'elena@blueharbor.co',
-    currency: 'PKR',
-    account: '3100-0003',
-    terms: 'Net 30',
-    receivable: 5400,
-    payable: 2100,
-    status: 'Active',
-    type: 'partnership',
-    branch: 'Central Branch',
-    creditLimit: 20000,
-    available: 14600,
-  },
-  {
-    id: 'G-001',
-    name: 'City Revenue Office',
-    contact: 'Desk 4',
-    phone: '+1 202 555 1001',
-    email: 'desk4@cityrevenue.gov',
-    currency: 'PKR',
-    account: '2200-0001',
-    terms: 'Net 7',
-    receivable: 0,
-    payable: 8600,
-    status: 'Active',
-    type: 'govt',
-    branch: 'Central Branch',
-    creditLimit: 0,
-    available: 0,
-  },
-  {
-    id: 'T-012',
-    name: 'Swift Haul',
-    contact: 'Bilal Khan',
-    phone: '+1 202 555 1012',
-    email: 'bilal@swifthaul.co',
-    currency: 'PKR',
-    account: '6200-0012',
-    terms: 'Net 14',
-    receivable: 0,
-    payable: 7300,
-    status: 'Active',
-    type: 'transporter',
-    branch: 'North Branch',
-    creditLimit: 0,
-    available: 0,
-  },
-]
-
-function money(value) {
-  return value.toLocaleString('en-US')
+function customerColumns(onView, onEdit) {
+  return [
+    {
+      key: 'name',
+      label: 'Party / code',
+      isRowHeader: true,
+      renderCell: (item) => (
+        <div>
+          <button
+            type="button"
+            onClick={() => onView(item)}
+            className="cursor-pointer text-sm font-medium text-slate-800"
+          >
+            {display(item.name)}
+          </button>
+          <p className="text-xs text-slate-400">{display(item.code)}</p>
+        </div>
+      ),
+    },
+    {
+      key: 'contact',
+      label: 'Contact',
+      renderCell: (item) => (
+        <div>
+          <p className="text-sm text-slate-700">{display(item.contactName)}</p>
+          <p className="text-xs text-slate-400">{display(item.phone)}</p>
+        </div>
+      ),
+    },
+    {
+      key: 'currency',
+      label: 'Currency',
+      renderCell: (item) => <span className="text-sm text-slate-700">{display(item.currency)}</span>,
+    },
+    {
+      key: 'account',
+      label: 'AR / AP account',
+      renderCell: (item) => (
+        <span className="text-sm text-slate-700">{display(item.arApAccount || item.receivableAccount)}</span>
+      ),
+    },
+    {
+      key: 'terms',
+      label: 'Terms',
+      renderCell: (item) => <span className="text-sm text-slate-700">{display(item.paymentTermsLabel)}</span>,
+    },
+    {
+      key: 'receivable',
+      label: 'Receivable (PKR)',
+      className: 'text-right',
+      cellClassName: 'text-right',
+      renderCell: (item) => <span className="text-sm text-slate-700">{moneyPlain(item.receivable)}</span>,
+    },
+    {
+      key: 'payable',
+      label: 'Payable (PKR)',
+      className: 'text-right',
+      cellClassName: 'text-right',
+      renderCell: (item) => <span className="text-sm text-slate-700">{moneyPlain(item.payable)}</span>,
+    },
+    {
+      key: 'status',
+      label: 'Status',
+      renderCell: (item) => (
+        <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${statusClassName(item.status)}`}>
+          {item.status}
+        </span>
+      ),
+    },
+    {
+      key: 'actions',
+      label: 'Actions',
+      className: 'text-right',
+      cellClassName: 'text-right',
+      renderCell: (item) => (
+        <div className="flex justify-end gap-1">
+          <button
+            type="button"
+            aria-label={`View ${item.name}`}
+            onClick={() => onView(item)}
+            className="inline-flex cursor-pointer items-center justify-center rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 hover:text-[#2563eb]"
+          >
+            <Eye size={16} />
+          </button>
+          <button
+            type="button"
+            aria-label={`Edit ${item.name}`}
+            onClick={() => onEdit(item)}
+            className="inline-flex cursor-pointer items-center justify-center rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 hover:text-[#2563eb]"
+          >
+            <Pencil size={16} />
+          </button>
+        </div>
+      ),
+    },
+  ]
 }
-
-const customerColumns = [
-  {
-    key: 'name',
-    label: 'Party / code',
-    isRowHeader: true,
-    renderCell: (item) => (
-      <div>
-        <p className="text-sm font-medium text-slate-800">{item.name}</p>
-        <p className="text-xs text-slate-400">{item.id}</p>
-      </div>
-    ),
-  },
-  {
-    key: 'contact',
-    label: 'Contact',
-    renderCell: (item) => (
-      <div>
-        <p className="text-sm text-slate-700">{item.contact}</p>
-        <p className="text-xs text-slate-400">{item.phone}</p>
-      </div>
-    ),
-  },
-  { key: 'currency', label: 'Currency' },
-  { key: 'account', label: 'AR / AP account' },
-  { key: 'terms', label: 'Terms' },
-  {
-    key: 'receivable',
-    label: 'Receivable (PKR)',
-    className: 'text-right',
-    cellClassName: 'text-right',
-    renderCell: (item) => <span className="text-sm text-slate-700">{money(item.receivable)}</span>,
-  },
-  {
-    key: 'payable',
-    label: 'Payable (PKR)',
-    className: 'text-right',
-    cellClassName: 'text-right',
-    renderCell: (item) => <span className="text-sm text-slate-700">{money(item.payable)}</span>,
-  },
-  {
-    key: 'status',
-    label: 'Status',
-    renderCell: (item) => (
-      <span
-        className={`rounded-full px-2 py-0.5 text-xs font-medium ${
-          item.status === 'Active'
-            ? 'bg-emerald-50 text-emerald-600'
-            : 'bg-slate-100 text-slate-500'
-        }`}
-      >
-        {item.status}
-      </span>
-    ),
-  },
-]
 
 function CustomerPage() {
   const navigate = useNavigate()
+  const location = useLocation()
   const [tab, setTab] = useState('customer')
   const [query, setQuery] = useState('')
-  const [branch, setBranch] = useState('Central Branch')
-  const [status, setStatus] = useState('All statuses')
-  const [currency, setCurrency] = useState('PKR')
-  const [selectedId, setSelectedId] = useState('C-1078')
+  const [debouncedSearch, setDebouncedSearch] = useState('')
+  const [branchId, setBranchId] = useState('')
+  const [status, setStatus] = useState('')
+  const [currencyId, setCurrencyId] = useState('')
+  const [paymentTerms, setPaymentTerms] = useState('')
+  const [page, setPage] = useState(1)
+  const [selectedId, setSelectedId] = useState(location.state?.selectedId || null)
 
-  const tabParties = useMemo(
-    () => parties.filter((party) => party.type === tab),
-    [tab],
-  )
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(query.trim())
+      setPage(1)
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [query])
 
-  const filtered = useMemo(() => {
-    const needle = query.trim().toLowerCase()
+  function changeFilter(setter) {
+    return (value) => {
+      setter(value)
+      setPage(1)
+    }
+  }
 
-    return tabParties.filter((party) => {
-      const matchesQuery =
-        !needle ||
-        party.name.toLowerCase().includes(needle) ||
-        party.id.toLowerCase().includes(needle) ||
-        party.contact.toLowerCase().includes(needle) ||
-        party.phone.includes(needle)
-      const matchesBranch = branch === 'All branches' || party.branch === branch
-      const matchesStatus = status === 'All statuses' || party.status === status
-      const matchesCurrency = currency === 'All currencies' || party.currency === currency
+  const customersQuery = useCustomers({
+    page,
+    limit,
+    search: debouncedSearch,
+    status,
+    paymentTerms,
+    currencyId,
+    branchId,
+  })
+  const branchesQuery = useBranches({ page: 1, limit: 100, search: '', status: 'active' })
+  const currenciesQuery = useCurrencies({ page: 1, limit: 100, search: '', status: 'active' })
 
-      return matchesQuery && matchesBranch && matchesStatus && matchesCurrency
-    })
-  }, [tabParties, query, branch, status, currency])
+  const pageRows = (customersQuery.data?.data || []).map(mapCustomer)
+  const total = customersQuery.data?.meta?.total ?? pageRows.length
+  const summary = customersQuery.data?.meta?.summary || {}
+  const selected = pageRows.find((row) => row.id === selectedId) || pageRows[0] || null
 
-  const selected = filtered.find((party) => party.id === selectedId) || filtered[0] || null
+  const detailQuery = useCustomer(tab === 'customer' ? selected?.id : null)
+  const detail = detailQuery.data?.data ? mapCustomer(detailQuery.data.data) : null
+  const profile = detail || selected
+
+  const branchOptions = (branchesQuery.data?.data || []).map((item) => ({
+    id: item._id,
+    name: item.name,
+  }))
+  const currencyOptions = (currenciesQuery.data?.data || []).map((item) => ({
+    id: item._id,
+    label: currencyLabel(item) || item.name,
+  }))
+
+  const partyCount = summary.total ?? total ?? '—'
+  const activeCount = summary.active ?? '—'
+  const creditCount = summary.creditCustomers ?? '—'
+  const inactiveCount = summary.inactiveParties ?? summary.inactive ?? '—'
+  const receivableBalance = summary.receivableBalance ?? summary.totalReceivable
 
   const activeTab = tabs.find((item) => item.key === tab)
-  const tabLabel = activeTab?.label || 'Parties'
-  const directoryView =
-    tab === 'customer' &&
-    !query.trim() &&
-    branch === 'Central Branch' &&
-    status === 'All statuses' &&
-    currency === 'PKR'
-
-  const receivable = directoryView
-    ? 96240
-    : tabParties.reduce((sum, party) => sum + party.receivable, 0)
-  const partyCount = directoryView ? 186 : tabParties.length
-  const activeCount = directoryView
-    ? 176
-    : tabParties.filter((party) => party.status === 'Active').length
-  const creditCount = directoryView
-    ? 128
-    : tabParties.filter((party) => party.terms !== 'Cash').length
-  const inactiveCount = directoryView
-    ? 8
-    : tabParties.filter((party) => party.status !== 'Active').length
+  const columns = customerColumns(
+    (item) => navigate(`/sales/customers/${item.id}`),
+    (item) => navigate(`/sales/customers/${item.id}/edit`),
+  )
 
   function changeTab(nextTab) {
     if (nextTab === 'supplier') {
       navigate('/purchases/suppliers')
       return
     }
-
     setTab(nextTab)
-    const first = parties.find((party) => party.type === nextTab)
-    setSelectedId(first?.id || '')
+  }
+
+  function clearFilters() {
+    setQuery('')
+    setBranchId('')
+    setStatus('')
+    setCurrencyId('')
+    setPaymentTerms('')
+    setPage(1)
   }
 
   return (
     <div className="space-y-4">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div>
-          <p className="text-[11px] font-semibold tracking-[0.18em] text-slate-400 uppercase">
-            Directories
-          </p>
-          <h1 className="mt-1 text-[32px] leading-none font-semibold tracking-tight text-slate-900">
-            Customer
-          </h1>
+          <p className="text-[11px] font-semibold tracking-[0.18em] text-slate-400 uppercase">Directories</p>
+          <h1 className="mt-1 text-[32px] leading-none font-semibold tracking-tight text-slate-900">Customer</h1>
           <p className="mt-2 text-sm text-slate-500">
             A shared party directory for customers, suppliers, people, and service partners.
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <ExportButton filename="customers" sheetName="Customers" columns={customerColumns} rows={filtered} />
+          <ExportButton
+            filename="customers"
+            sheetName="Customers"
+            columns={columns}
+            loadRows={async () => {
+              const rows = await fetchAllPages(getCustomers, {
+                search: debouncedSearch,
+                status,
+                paymentTerms,
+                currencyId,
+                branchId,
+              })
+              return rows.map(mapCustomer)
+            }}
+          />
           <Button size="sm" onPress={() => navigate('/sales/customers/new')}>
             <Plus size={15} />
             Add Customer
@@ -478,120 +270,191 @@ function CustomerPage() {
 
       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
         <StatCard
-          label={tabLabel}
+          label={activeTab?.label || 'Customers'}
           value={String(partyCount)}
           hint={`${activeCount} active`}
         />
         <StatCard
           label="Receivable balance"
-          value={`PKR ${money(receivable)}`}
+          value={receivableBalance == null ? '—' : formatMoney(receivableBalance)}
           hint="PKR base"
         />
-        <StatCard
-          label={tab === 'customer' ? 'Credit customers' : 'Credit parties'}
-          value={String(creditCount)}
-          hint="terms configured"
-        />
-        <StatCard
-          label="Inactive parties"
-          value={String(inactiveCount)}
-          hint="retained for history"
-        />
+        <StatCard label="Credit customers" value={String(creditCount)} hint="terms configured" />
+        <StatCard label="Inactive parties" value={String(inactiveCount)} hint="retained for history" />
       </div>
 
-      <section className="rounded-2xl border border-slate-200/80 bg-white shadow-sm">
-        <div className="flex flex-col gap-3 border-b border-slate-100 px-5 py-4 lg:flex-row lg:items-center lg:justify-between">
-          <div>
-            <h2 className="text-base font-semibold">Customer register</h2>
-            <p className="text-xs text-slate-500">
-              Contact, account mapping, and commercial terms.
-            </p>
-          </div>
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-            <label className="relative">
-              <Search size={14} className="absolute top-1/2 left-3 -translate-y-1/2 text-slate-400" />
-              <input
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
-                placeholder="Search party or contact"
-                className="w-full rounded-lg border border-slate-200 py-2 pr-3 pl-8 text-sm outline-none placeholder:text-slate-400 focus:border-sky-400 sm:w-56"
-              />
-            </label>
-            <FilterSelect
-              value={branch}
-              onChange={setBranch}
-              options={['All branches', 'Central Branch', 'North Branch']}
-            />
-            <FilterSelect
-              value={status}
-              onChange={setStatus}
-              options={['All statuses', 'Active', 'Inactive']}
-            />
-            <FilterSelect
-              value={currency}
-              onChange={setCurrency}
-              options={['All currencies', 'PKR', 'USD']}
-            />
-          </div>
-        </div>
-
-        <GlobalTable
-          ariaLabel="Customer register"
-          columns={customerColumns}
-          data={filtered}
-          pagination
-          rowsPerPage={7}
-          emptyContent="No parties match these filters."
-          onRowPress={(item) => setSelectedId(item.id)}
-          rowClassName={(item) =>
-            `cursor-pointer border-b border-slate-100 last:border-b-0 hover:bg-slate-50 ${
-              item.id === selectedId ? 'row-selected' : ''
-            }`
-          }
-        />
-      </section>
-
-      {selected && (
-        <section className="grid items-start gap-x-2 gap-y-4 xl:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
-          <article className="rounded-2xl border border-slate-200/70 bg-white px-5 py-4 shadow-sm">
-            <div className="flex items-start justify-between gap-4">
+      {tab === 'customer' ? (
+        <>
+          <section className="rounded-2xl border border-slate-200/80 bg-white shadow-sm">
+            <div className="flex flex-col gap-3 border-b border-slate-100 px-5 py-4 lg:flex-row lg:items-center lg:justify-between">
               <div>
-                <h2 className="text-[15px] font-semibold text-slate-900">{selected.name}</h2>
-                <p className="mt-0.5 text-xs text-slate-400">
-                  Selected {(activeTab?.singular || 'party').toLowerCase()} · {selected.id}
-                </p>
+                <h2 className="text-base font-semibold">Customer register</h2>
+                <p className="text-xs text-slate-500">Contact, account mapping, and commercial terms.</p>
               </div>
-              <button
-                type="button"
-                onClick={() => toast.success(`Ledger opened for ${selected.name}.`)}
-                className="text-sm font-medium whitespace-nowrap text-sky-600 cursor-pointer"
-              >
-                Open {(activeTab?.singular || 'party').toLowerCase()} ledger
-              </button>
+              <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+                <label className="relative">
+                  <Search size={14} className="absolute top-1/2 left-3 -translate-y-1/2 text-slate-400" />
+                  <input
+                    value={query}
+                    onChange={(event) => setQuery(event.target.value)}
+                    placeholder="Search party or contact"
+                    className="w-full rounded-lg border border-slate-200 py-2 pr-3 pl-8 text-sm outline-none placeholder:text-slate-400 focus:border-sky-400 sm:w-56"
+                  />
+                </label>
+                <select
+                  aria-label="Branch"
+                  value={branchId}
+                  onChange={(event) => changeFilter(setBranchId)(event.target.value)}
+                  className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:border-sky-400"
+                >
+                  <option value="">All branches</option>
+                  {branchOptions.map((item) => (
+                    <option key={item.id} value={item.id}>
+                      {item.name}
+                    </option>
+                  ))}
+                </select>
+                <select
+                  aria-label="Status"
+                  value={status}
+                  onChange={(event) => changeFilter(setStatus)(event.target.value)}
+                  className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:border-sky-400"
+                >
+                  <option value="">All statuses</option>
+                  <option value="active">Active</option>
+                  <option value="inactive">Inactive</option>
+                </select>
+                <select
+                  aria-label="Currency"
+                  value={currencyId}
+                  onChange={(event) => changeFilter(setCurrencyId)(event.target.value)}
+                  className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:border-sky-400"
+                >
+                  <option value="">All currencies</option>
+                  {currencyOptions.map((item) => (
+                    <option key={item.id} value={item.id}>
+                      {item.label}
+                    </option>
+                  ))}
+                </select>
+                <select
+                  aria-label="Payment terms"
+                  value={paymentTerms}
+                  onChange={(event) => changeFilter(setPaymentTerms)(event.target.value)}
+                  className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:border-sky-400"
+                >
+                  <option value="">All terms</option>
+                  {paymentTermsOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  onClick={clearFilters}
+                  className="cursor-pointer px-2 py-2 text-sm font-medium text-[#2f6fed]"
+                >
+                  Clear filters
+                </button>
+              </div>
             </div>
-            <dl className="mt-4 space-y-3">
-              <DetailRow label="Email" value={selected.email} />
-              <DetailRow
-                label="Credit limit / available"
-                value={`PKR ${money(selected.creditLimit)} / PKR ${money(selected.available)}`}
-              />
-              <DetailRow label="Default terms" value={`${selected.terms} · ${selected.currency}`} />
-            </dl>
-          </article>
 
-          <article className="rounded-2xl border border-slate-200/70 bg-white px-5 py-4 shadow-sm">
-            <h2 className="text-[15px] font-semibold text-slate-900">Party accounts</h2>
-            <p className="mt-0.5 text-xs text-slate-400">Traceable financial relationships</p>
-            <div className="mt-3 rounded-xl bg-[#eaf3ff] px-4 py-3">
-              <p className="text-sm font-semibold text-[#2f6fed]">
-                Receivable and payable accounts stay separate
-              </p>
-              <p className="mt-1 text-sm leading-5 text-slate-500">
-                A party can be both customer and supplier. Balances derive from posted ledger
-                entries, not manual balance edits.
-              </p>
-            </div>
-          </article>
+            <GlobalTable
+              ariaLabel="Customer register"
+              columns={columns}
+              data={pageRows}
+              pagination
+              rowsPerPage={limit}
+              page={page}
+              totalCount={total}
+              onPageChange={setPage}
+              emptyContent={
+                customersQuery.isError
+                  ? customersQuery.error.response?.data?.message || 'Could not load customers.'
+                  : customersQuery.isLoading
+                    ? 'Loading customers...'
+                    : 'No customers match these filters.'
+              }
+              summary={
+                total
+                  ? `Showing ${pageRows.length} ${pageRows.length === 1 ? 'record' : 'records'}${selected ? ' · 1 selected' : ''}`
+                  : undefined
+              }
+              onRowPress={(item) => setSelectedId(item.id)}
+              rowClassName={(item) =>
+                `cursor-pointer border-b border-slate-100 last:border-b-0 hover:bg-slate-50 ${
+                  selected?.id === item.id ? 'row-selected' : ''
+                }`
+              }
+            />
+          </section>
+
+          {profile && (
+            <section className="grid items-start gap-x-2 gap-y-4 xl:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
+              <article className="rounded-2xl border border-slate-200/70 bg-white px-5 py-4 shadow-sm">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <h2 className="text-[15px] font-semibold text-slate-900">{display(profile.name)}</h2>
+                    <p className="mt-0.5 text-xs text-slate-400">
+                      Selected customer · {display(profile.code)}
+                      {detailQuery.isLoading ? ' · loading…' : ''}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (profile.ledgerPath) {
+                        navigate(profile.ledgerPath)
+                        return
+                      }
+                      toast.info(`Ledger for ${profile.name} is not linked yet.`)
+                    }}
+                    className="cursor-pointer text-sm font-medium whitespace-nowrap text-sky-600"
+                  >
+                    Open customer ledger
+                  </button>
+                </div>
+                <dl className="mt-4 space-y-3">
+                  <DetailRow label="Email" value={display(profile.email)} />
+                  <DetailRow
+                    label="Credit limit / available"
+                    value={`${formatMoney(profile.creditLimit, profile.currency)} / ${formatMoney(profile.availableCredit, profile.currency)}`}
+                  />
+                  <DetailRow
+                    label="Default terms"
+                    value={`${display(profile.paymentTermsLabel)} · ${display(profile.currency)}`}
+                  />
+                  <DetailRow label="Phone" value={display(profile.phone)} />
+                  <DetailRow label="Address" value={display(profile.address)} />
+                </dl>
+              </article>
+
+              <article className="rounded-2xl border border-slate-200/70 bg-white px-5 py-4 shadow-sm">
+                <h2 className="text-[15px] font-semibold text-slate-900">Party accounts</h2>
+                <p className="mt-0.5 text-xs text-slate-400">Traceable financial relationships</p>
+                <dl className="mt-3 space-y-3">
+                  <DetailRow label="Receivable account" value={display(profile.receivableAccount)} />
+                  <DetailRow label="AR / AP" value={display(profile.arApAccount)} />
+                  <DetailRow label="Receivable" value={formatMoney(profile.receivable)} />
+                  <DetailRow label="Payable" value={formatMoney(profile.payable)} />
+                </dl>
+                <div className="mt-3 rounded-xl bg-[#eaf3ff] px-4 py-3">
+                  <p className="text-sm font-semibold text-[#2f6fed]">
+                    Receivable and payable accounts stay separate
+                  </p>
+                  <p className="mt-1 text-sm leading-5 text-slate-500">
+                    {profile.balanceNote || customerAccountNote}
+                  </p>
+                </div>
+              </article>
+            </section>
+          )}
+        </>
+      ) : (
+        <section className="rounded-2xl border border-slate-200/80 bg-white px-5 py-8 text-center shadow-sm">
+          <h2 className="text-sm font-semibold text-slate-900">{activeTab?.label || 'Directory'}</h2>
+          <p className="mt-1 text-sm text-slate-400">Nothing is configured in this view yet.</p>
         </section>
       )}
     </div>
@@ -605,20 +468,6 @@ function StatCard({ label, value, hint }) {
       <p className="mt-3 text-[28px] leading-none font-semibold tracking-tight text-slate-900">{value}</p>
       <p className="mt-2 text-xs text-slate-400">{hint}</p>
     </article>
-  )
-}
-
-function FilterSelect({ value, onChange, options }) {
-  return (
-    <select
-      value={value}
-      onChange={(event) => onChange(event.target.value)}
-      className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:border-sky-400"
-    >
-      {options.map((option) => (
-        <option key={option}>{option}</option>
-      ))}
-    </select>
   )
 }
 

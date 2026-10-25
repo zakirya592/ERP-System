@@ -2,61 +2,64 @@ import { useState } from 'react'
 import { ArrowLeft, ChevronDown } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'react-toastify'
-
-const currencies = ['PKR', 'USD']
-const paymentTerms = ['Cash', 'Net 7', 'Net 14', 'Net 30']
-const payableAccounts = [
-  '2100-0012',
-  '2100-0033',
-  '2100-0042',
-  '2100-0055',
-  '2100-0078',
-  '2100-0091',
-  '2100-0104',
-  '2100-0120',
-]
-
-const emptyForm = {
-  code: '',
-  name: '',
-  phone: '',
-  email: '',
-  address: '',
-  currency: 'PKR',
-  terms: '',
-  account: '',
-  status: 'Active',
-}
+import { useCurrencies } from '../../queries/currencies/currencies.queries.js'
+import { useCreateSupplier } from '../../queries/suppliers/suppliers.queries.js'
+import {
+  applySupplierErrors,
+  emptySupplierForm,
+  paymentTermsOptions,
+  supplierStatuses,
+  toSupplierBody,
+} from './supplierRecords.js'
 
 function AddSupplierPage() {
   const navigate = useNavigate()
-  const [form, setForm] = useState(emptyForm)
+  const createSupplier = useCreateSupplier()
+  const currenciesQuery = useCurrencies({ page: 1, limit: 100, search: '', status: 'active' })
+  const [form, setForm] = useState(emptySupplierForm)
   const [errors, setErrors] = useState({})
+
+  const currencyOptions = (currenciesQuery.data?.data || []).map((currency) => ({
+    value: currency._id,
+    label: currency.code ? `${currency.code} — ${currency.name}` : currency.name,
+  }))
 
   function update(key, value) {
     setForm((current) => ({ ...current, [key]: value }))
     setErrors((current) => ({ ...current, [key]: '' }))
   }
 
-  function handleSubmit(event) {
-    event.preventDefault()
+  function validate() {
     const nextErrors = {}
-
     if (!form.code.trim()) nextErrors.code = 'Enter a supplier code.'
     if (!form.name.trim()) nextErrors.name = 'Enter a supplier name.'
-    if (!form.currency) nextErrors.currency = 'Select a currency.'
-    if (!form.terms) nextErrors.terms = 'Select payment terms.'
-    if (!form.account) nextErrors.account = 'Select a payable account.'
+    if (!form.currencyId) nextErrors.currencyId = 'Select a currency.'
+    if (!form.paymentTerms) nextErrors.paymentTerms = 'Select payment terms.'
+    if (!form.payableAccount.trim()) nextErrors.payableAccount = 'Enter a payable account.'
     if (form.email.trim() && !form.email.includes('@')) nextErrors.email = 'Enter a valid email.'
-
-    if (Object.keys(nextErrors).length > 0) {
-      setErrors(nextErrors)
-      return
-    }
-
-    toast.success(`${form.name.trim()} saved.`)
-    navigate('/purchases/suppliers')
+    setErrors(nextErrors)
+    return Object.keys(nextErrors).length === 0
   }
+
+  function handleSubmit(event) {
+    event.preventDefault()
+    if (!validate()) return
+
+    createSupplier.mutate(toSupplierBody(form), {
+      onSuccess: (data) => {
+        toast.success(data?.message || `${form.name.trim()} saved.`)
+        const id = data?.data?._id
+        navigate('/purchases/suppliers', { state: id ? { selectedId: id } : undefined })
+      },
+      onError: (error) => {
+        applySupplierErrors(error, setErrors)
+        toast.error(error.response?.data?.message || 'Could not save the supplier.')
+      },
+    })
+  }
+
+  const selectedCurrency = currencyOptions.find((option) => option.value === form.currencyId)
+  const currencyHint = selectedCurrency?.label?.split(' — ')[0] || 'PKR'
 
   return (
     <form className="mx-auto max-w-5xl space-y-4" onSubmit={handleSubmit}>
@@ -64,7 +67,7 @@ function AddSupplierPage() {
         <button
           type="button"
           onClick={() => navigate('/purchases/suppliers')}
-          className="inline-flex items-center gap-1.5 text-sm font-medium text-sky-600 cursor-pointer"
+          className="inline-flex cursor-pointer items-center gap-1.5 text-sm font-medium text-sky-600"
         >
           <ArrowLeft size={15} />
           Back to Supplier
@@ -104,6 +107,7 @@ function AddSupplierPage() {
           <Field
             label="Phone"
             value={form.phone}
+            error={errors.phone}
             placeholder="e.g. +92 300 1234567"
             onChange={(value) => update('phone', value)}
           />
@@ -119,6 +123,7 @@ function AddSupplierPage() {
             className="md:col-span-2"
             label="Address"
             value={form.address}
+            error={errors.address}
             placeholder="Street address, area, city, and postal code"
             onChange={(value) => update('address', value)}
           />
@@ -134,43 +139,43 @@ function AddSupplierPage() {
           <SelectField
             label="Preferred currency"
             required
-            value={form.currency}
-            error={errors.currency}
-            hint={`All supplier amounts are recorded in ${form.currency || 'PKR'}.`}
-            onChange={(value) => update('currency', value)}
-            options={currencies}
+            value={form.currencyId}
+            error={errors.currencyId}
+            placeholder={currenciesQuery.isLoading ? 'Loading currencies...' : 'Select currency'}
+            hint={`All supplier amounts are recorded in ${currencyHint}.`}
+            onChange={(value) => update('currencyId', value)}
+            options={currencyOptions}
           />
           <SelectField
             label="Payment terms"
             required
-            value={form.terms}
-            error={errors.terms}
+            value={form.paymentTerms}
+            error={errors.paymentTerms}
             placeholder="Select payment terms"
             hint="e.g. Cash, Net 7, Net 14, or Net 30."
-            onChange={(value) => update('terms', value)}
-            options={paymentTerms}
+            onChange={(value) => update('paymentTerms', value)}
+            options={paymentTermsOptions}
           />
-          <SelectField
+          <Field
             label="Payable account"
             required
-            value={form.account}
-            error={errors.account}
-            placeholder="Select a supplier payable account"
+            value={form.payableAccount}
+            error={errors.payableAccount}
+            placeholder="e.g. 2100-0008"
             hint="Link posted purchases and payments to this supplier's ledger through the payable account."
-            onChange={(value) => update('account', value)}
-            options={payableAccounts}
+            onChange={(value) => update('payableAccount', value)}
           />
           <fieldset>
             <legend className="text-sm text-slate-700">
               Status <span className="text-rose-500">*</span>
             </legend>
             <div className="mt-1.5 flex gap-2">
-              {['Active', 'Inactive'].map((option) => {
-                const selected = form.status === option
+              {supplierStatuses.map((option) => {
+                const selected = form.status === option.value
 
                 return (
                   <label
-                    key={option}
+                    key={option.value}
                     className={`inline-flex h-10 min-w-28 cursor-pointer items-center gap-2 rounded-lg border px-3 text-sm ${
                       selected
                         ? 'border-sky-400 bg-sky-50 text-slate-800'
@@ -180,30 +185,39 @@ function AddSupplierPage() {
                     <input
                       type="radio"
                       name="status"
-                      value={option}
+                      value={option.value}
                       checked={selected}
-                      onChange={() => update('status', option)}
+                      onChange={() => update('status', option.value)}
                       className="size-4 accent-blue-600"
                     />
-                    {option}
+                    {option.label}
                   </label>
                 )
               })}
             </div>
-            <p className="mt-1 text-xs text-slate-400">
-              Active suppliers are available for new purchases.
-            </p>
+            <p className="mt-1 text-xs text-slate-400">Active suppliers are available for new purchases.</p>
           </fieldset>
+          <label className="block md:col-span-2">
+            <span className="text-sm text-slate-700">Notes</span>
+            <textarea
+              value={form.notes}
+              rows={3}
+              placeholder="Optional internal notes"
+              onChange={(event) => update('notes', event.target.value)}
+              className={`mt-1.5 w-full rounded-lg border bg-white px-3 py-2 text-sm text-slate-800 outline-none placeholder:text-slate-400 focus:border-sky-400 ${
+                errors.notes ? 'border-rose-300' : 'border-slate-200'
+              }`}
+            />
+            {errors.notes && <p className="mt-1 text-xs text-rose-500">{errors.notes}</p>}
+          </label>
         </div>
 
         <div className="mt-4 rounded-xl bg-[#eaf3ff] px-4 py-3">
-          <p className="text-sm font-semibold text-[#2f6fed]">
-            Supplier record ≠ financial transaction
-          </p>
+          <p className="text-sm font-semibold text-[#2f6fed]">Supplier record ≠ financial transaction</p>
           <p className="mt-1 text-sm leading-5 text-slate-500">
-            This payable account links posted purchases and payments to the supplier ledger.
-            Creating a supplier does not post a financial transaction or create a balance. Payable
-            balances come from posted ledger entries.
+            This payable account links posted purchases and payments to the supplier ledger. Creating a
+            supplier does not post a financial transaction or create a balance. Payable balances come
+            from posted ledger entries.
           </p>
         </div>
       </section>
@@ -216,15 +230,16 @@ function AddSupplierPage() {
           <button
             type="button"
             onClick={() => navigate('/purchases/suppliers')}
-            className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 cursor-pointer"
+            className="cursor-pointer rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700"
           >
             Cancel
           </button>
           <button
             type="submit"
-            className="rounded-lg bg-[#2563eb] px-4 py-2 text-sm font-medium text-white cursor-pointer"
+            disabled={createSupplier.isPending}
+            className="cursor-pointer rounded-lg bg-[#2563eb] px-4 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-60"
           >
-            Save Supplier
+            {createSupplier.isPending ? 'Saving...' : 'Save Supplier'}
           </button>
         </div>
       </div>
@@ -292,8 +307,8 @@ function SelectField({
         >
           {placeholder && <option value="">{placeholder}</option>}
           {options.map((option) => (
-            <option key={option} value={option}>
-              {option}
+            <option key={option.value} value={option.value}>
+              {option.label}
             </option>
           ))}
         </select>

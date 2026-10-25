@@ -1,5 +1,6 @@
 import { getBranches } from '../api/branches.api'
 import { getCurrencies } from '../api/currencies.api'
+import { getCustomers } from '../api/customers.api'
 import { getPackingUnits } from '../api/packingUnits.api'
 import { getProductCategories } from '../api/productCategories.api'
 import { getProducts } from '../api/products.api'
@@ -8,6 +9,7 @@ import { getEmployees } from '../api/employees.api'
 import { getOwners } from '../api/owners.api'
 import { getPartnerships } from '../api/partnerships.api'
 import { getShops } from '../api/shops.api'
+import { getSuppliers } from '../api/suppliers.api'
 import { getWarehouses } from '../api/warehouses.api'
 import { getPermissions } from '../api/permissions.api'
 import { getRoles } from '../api/roles.api'
@@ -31,6 +33,24 @@ export const dashboardListParams = {
   packingUnits: { page: 1, limit: 20, search: '', status: '', quantityUnitId: '' },
   productCategories: { page: 1, limit: 20, search: '', status: '' },
   products: { page: 1, limit: 20, search: '', status: '', categoryId: '' },
+  suppliers: {
+    page: 1,
+    limit: 20,
+    search: '',
+    status: '',
+    paymentTerms: '',
+    currencyId: '',
+    branchId: '',
+  },
+  customers: {
+    page: 1,
+    limit: 20,
+    search: '',
+    status: '',
+    paymentTerms: '',
+    currencyId: '',
+    branchId: '',
+  },
 }
 
 export const dashboardListQueries = [
@@ -102,6 +122,16 @@ export const dashboardListQueries = [
   {
     queryKey: queryKeys.products.list(dashboardListParams.products),
     queryFn: () => getProducts(dashboardListParams.products),
+    staleTime,
+  },
+  {
+    queryKey: queryKeys.suppliers.list(dashboardListParams.suppliers),
+    queryFn: () => getSuppliers(dashboardListParams.suppliers),
+    staleTime,
+  },
+  {
+    queryKey: queryKeys.customers.list(dashboardListParams.customers),
+    queryFn: () => getCustomers(dashboardListParams.customers),
     staleTime,
   },
 ]

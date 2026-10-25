@@ -2,37 +2,31 @@ import { useState } from 'react'
 import { ArrowLeft, ChevronDown } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'react-toastify'
-
-const currencies = ['PKR', 'USD']
-const paymentTerms = ['Cash', 'Net 7', 'Net 14', 'Net 30']
-const receivableAccounts = [
-  '1200-0016',
-  '1200-0031',
-  '1200-0042',
-  '1200-0069',
-  '1200-0073',
-  '1200-0114',
-  '1200-0188',
-  '1200-0192',
-]
-
-const emptyForm = {
-  code: '',
-  name: '',
-  phone: '',
-  email: '',
-  address: '',
-  currency: 'PKR',
-  creditLimit: '',
-  terms: '',
-  account: '',
-  status: 'Active',
-}
+import { useCurrencies } from '../../queries/currencies/currencies.queries.js'
+import { useCreateCustomer } from '../../queries/customers/customers.queries.js'
+import {
+  applyCustomerErrors,
+  currencyLabel,
+  customerNote,
+  customerStatuses,
+  emptyCustomerForm,
+  paymentTermsOptions,
+  toCustomerBody,
+  validateCustomerForm,
+} from './customerRecords.js'
 
 function AddCustomerPage() {
   const navigate = useNavigate()
-  const [form, setForm] = useState(emptyForm)
+  const createCustomer = useCreateCustomer()
+  const currenciesQuery = useCurrencies({ page: 1, limit: 100, search: '', status: 'active' })
+  const currencyOptions = (currenciesQuery.data?.data || []).map((item) => ({
+    value: item._id,
+    label: currencyLabel(item) || item.name,
+  }))
+  const [form, setForm] = useState(emptyCustomerForm)
   const [errors, setErrors] = useState({})
+  const selectedCurrency = currencyOptions.find((option) => option.value === form.currencyId)
+  const currencyCode = selectedCurrency?.label || 'PKR'
 
   function update(key, value) {
     setForm((current) => ({ ...current, [key]: value }))
@@ -41,22 +35,23 @@ function AddCustomerPage() {
 
   function handleSubmit(event) {
     event.preventDefault()
-    const nextErrors = {}
-
-    if (!form.code.trim()) nextErrors.code = 'Enter a customer code.'
-    if (!form.name.trim()) nextErrors.name = 'Enter a customer name.'
-    if (!form.currency) nextErrors.currency = 'Select a currency.'
-    if (!form.terms) nextErrors.terms = 'Select payment terms.'
-    if (!form.account) nextErrors.account = 'Select a receivable account.'
-    if (form.email.trim() && !form.email.includes('@')) nextErrors.email = 'Enter a valid email.'
-
+    const nextErrors = validateCustomerForm(form)
     if (Object.keys(nextErrors).length > 0) {
       setErrors(nextErrors)
       return
     }
 
-    toast.success(`${form.name.trim()} saved.`)
-    navigate('/sales/customers')
+    createCustomer.mutate(toCustomerBody(form), {
+      onSuccess: (data) => {
+        toast.success(data?.message || `${form.name.trim()} saved.`)
+        const id = data?.data?._id
+        navigate('/sales/customers', { state: id ? { selectedId: id } : undefined })
+      },
+      onError: (error) => {
+        applyCustomerErrors(error, setErrors)
+        toast.error(error.response?.data?.message || 'Could not save the customer.')
+      },
+    })
   }
 
   return (
@@ -65,7 +60,7 @@ function AddCustomerPage() {
         <button
           type="button"
           onClick={() => navigate('/sales/customers')}
-          className="inline-flex items-center gap-1.5 text-sm font-medium text-sky-600 cursor-pointer"
+          className="inline-flex cursor-pointer items-center gap-1.5 text-sm font-medium text-sky-600"
         >
           <ArrowLeft size={15} />
           Back to Customer
@@ -103,8 +98,16 @@ function AddCustomerPage() {
             onChange={(value) => update('name', value)}
           />
           <Field
+            label="Contact name"
+            value={form.contactName}
+            error={errors.contactName}
+            placeholder="e.g. Maya Reed"
+            onChange={(value) => update('contactName', value)}
+          />
+          <Field
             label="Phone"
             value={form.phone}
+            error={errors.phone}
             placeholder="e.g. +92 300 1234567"
             onChange={(value) => update('phone', value)}
           />
@@ -120,6 +123,7 @@ function AddCustomerPage() {
             className="md:col-span-2"
             label="Address"
             value={form.address}
+            error={errors.address}
             placeholder="Street address, area, city, and postal code"
             onChange={(value) => update('address', value)}
           />
@@ -135,51 +139,52 @@ function AddCustomerPage() {
           <SelectField
             label="Preferred currency"
             required
-            value={form.currency}
-            error={errors.currency}
-            hint={`All customer amounts are recorded in ${form.currency || 'PKR'}.`}
-            onChange={(value) => update('currency', value)}
-            options={currencies}
+            value={form.currencyId}
+            error={errors.currencyId}
+            hint={`All customer amounts are recorded in ${currencyCode}.`}
+            onChange={(value) => update('currencyId', value)}
+            options={currencyOptions}
+            placeholder="Select currency"
           />
           <Field
-            label={`Credit limit (${form.currency || 'PKR'})`}
+            label={`Credit limit (${currencyCode})`}
             value={form.creditLimit}
-            placeholder={`${form.currency || 'PKR'} 25,000.00`}
+            error={errors.creditLimit}
+            placeholder={`${currencyCode} 25,000.00`}
             hint="Maximum credit allowed for this customer."
             onChange={(value) => update('creditLimit', value)}
           />
           <SelectField
             label="Payment terms"
             required
-            value={form.terms}
-            error={errors.terms}
+            value={form.paymentTerms}
+            error={errors.paymentTerms}
             placeholder="Select payment terms"
             hint="e.g. Cash, Net 7, Net 14, or Net 30."
-            onChange={(value) => update('terms', value)}
-            options={paymentTerms}
+            onChange={(value) => update('paymentTerms', value)}
+            options={paymentTermsOptions}
           />
-          <SelectField
+          <Field
             className="lg:col-span-2"
             label="Receivable account"
             required
-            value={form.account}
-            error={errors.account}
-            placeholder="Select a customer receivable account"
+            value={form.receivableAccount}
+            error={errors.receivableAccount}
+            placeholder="e.g. 1200-0016"
             hint="Link this customer to its appropriate accounts receivable ledger account."
-            onChange={(value) => update('account', value)}
-            options={receivableAccounts}
+            onChange={(value) => update('receivableAccount', value)}
           />
           <fieldset>
             <legend className="text-sm text-slate-700">
               Status <span className="text-rose-500">*</span>
             </legend>
             <div className="mt-1.5 flex gap-2">
-              {['Active', 'Inactive'].map((option) => {
-                const selected = form.status === option
+              {customerStatuses.map((option) => {
+                const selected = form.status === option.value
 
                 return (
                   <label
-                    key={option}
+                    key={option.value}
                     className={`inline-flex h-10 min-w-28 cursor-pointer items-center gap-2 rounded-lg border px-3 text-sm ${
                       selected
                         ? 'border-sky-400 bg-sky-50 text-slate-800'
@@ -189,29 +194,37 @@ function AddCustomerPage() {
                     <input
                       type="radio"
                       name="status"
-                      value={option}
+                      value={option.value}
                       checked={selected}
-                      onChange={() => update('status', option)}
+                      onChange={() => update('status', option.value)}
                       className="size-4 accent-blue-600"
                     />
-                    {option}
+                    {option.label}
                   </label>
                 )
               })}
             </div>
             <p className="mt-1 text-xs text-slate-400">Active customers are available for new sales.</p>
+            {errors.status && <p className="mt-1 text-xs text-rose-500">{errors.status}</p>}
           </fieldset>
+          <label className="block lg:col-span-3">
+            <span className="text-sm text-slate-700">Notes</span>
+            <textarea
+              value={form.notes}
+              rows={3}
+              placeholder="Optional internal notes"
+              onChange={(event) => update('notes', event.target.value)}
+              className={`mt-1.5 w-full rounded-lg border bg-white px-3 py-2 text-sm text-slate-800 outline-none placeholder:text-slate-400 focus:border-sky-400 ${
+                errors.notes ? 'border-rose-300' : 'border-slate-200'
+              }`}
+            />
+            {errors.notes && <p className="mt-1 text-xs text-rose-500">{errors.notes}</p>}
+          </label>
         </div>
 
         <div className="mt-4 rounded-xl bg-[#eaf3ff] px-4 py-3">
-          <p className="text-sm font-semibold text-[#2f6fed]">
-            Customer record ≠ financial transaction
-          </p>
-          <p className="mt-1 text-sm leading-5 text-slate-500">
-            This receivable account links the customer to accounting. Saving this record does not
-            post a voucher or create a balance. Receivable balances come from posted ledger entries;
-            supplier payable accounts remain separate.
-          </p>
+          <p className="text-sm font-semibold text-[#2f6fed]">Customer record ≠ financial transaction</p>
+          <p className="mt-1 text-sm leading-5 text-slate-500">{customerNote}</p>
         </div>
       </section>
 
@@ -223,15 +236,16 @@ function AddCustomerPage() {
           <button
             type="button"
             onClick={() => navigate('/sales/customers')}
-            className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 cursor-pointer"
+            className="cursor-pointer rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700"
           >
             Cancel
           </button>
           <button
             type="submit"
-            className="rounded-lg bg-[#2563eb] px-4 py-2 text-sm font-medium text-white cursor-pointer"
+            disabled={createCustomer.isPending}
+            className="cursor-pointer rounded-lg bg-[#2563eb] px-4 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-60"
           >
-            Save Customer
+            {createCustomer.isPending ? 'Saving...' : 'Save Customer'}
           </button>
         </div>
       </div>
@@ -299,8 +313,8 @@ function SelectField({
         >
           {placeholder && <option value="">{placeholder}</option>}
           {options.map((option) => (
-            <option key={option} value={option}>
-              {option}
+            <option key={option.value} value={option.value}>
+              {option.label}
             </option>
           ))}
         </select>

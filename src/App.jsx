@@ -4,6 +4,8 @@ import DashboardPage from './pages/DashboardPage.jsx'
 import LoginPage from './pages/Login/LoginPage.jsx'
 import AddCustomerPage from './pages/Customer/AddCustomerPage.jsx'
 import CustomerPage from './pages/Customer/CustomerPage.jsx'
+import EditCustomerPage from './pages/Customer/EditCustomerPage.jsx'
+import ViewCustomerPage from './pages/Customer/ViewCustomerPage.jsx'
 import AddProductPage from './pages/ProductsInventory/products/AddProductPage.jsx'
 import AddCategoryPage from './pages/ProductsInventory/categories/AddCategoryPage.jsx'
 import CategoryPage from './pages/ProductsInventory/categories/CategoryPage.jsx'
@@ -20,7 +22,9 @@ import NewSalePage from './pages/Sales/NewSalePage.jsx'
 import SalesPage from './pages/Sales/SalesPage.jsx'
 import SalesReturnPage from './pages/Sales/SalesReturnPage.jsx'
 import AddSupplierPage from './pages/Supplier/AddSupplierPage.jsx'
+import EditSupplierPage from './pages/Supplier/EditSupplierPage.jsx'
 import SupplierPage from './pages/Supplier/SupplierPage.jsx'
+import ViewSupplierPage from './pages/Supplier/ViewSupplierPage.jsx'
 import AddUserPage from './pages/UsersAndSecurity/Users/AddUserPage.jsx'
 import PermissionsPage from './pages/UsersAndSecurity/permissions/PermissionsPage.jsx'
 import AddRolePage from './pages/UsersAndSecurity/Roles/AddRolePage.jsx'
@@ -105,10 +109,14 @@ function App() {
         <Route path="/sales/sales" element={<SalesPage />} />
         <Route path="/sales/sales/new" element={<NewSalePage />} />
         <Route path="/sales/returns" element={<SalesReturnPage />} />
-        <Route path="/sales/customers" element={<CustomerPage />} />
         <Route path="/sales/customers/new" element={<AddCustomerPage />} />
-        <Route path="/purchases/suppliers" element={<SupplierPage />} />
+        <Route path="/sales/customers/:id/edit" element={<EditCustomerPage />} />
+        <Route path="/sales/customers/:id" element={<ViewCustomerPage />} />
+        <Route path="/sales/customers" element={<CustomerPage />} />
         <Route path="/purchases/suppliers/new" element={<AddSupplierPage />} />
+        <Route path="/purchases/suppliers/:id/edit" element={<EditSupplierPage />} />
+        <Route path="/purchases/suppliers/:id" element={<ViewSupplierPage />} />
+        <Route path="/purchases/suppliers" element={<SupplierPage />} />
         <Route path="/products/products" element={<ProductPage />} />
         <Route path="/products/products/new" element={<AddProductPage />} />
         <Route path="/products/products/:id/edit" element={<UpdateProductPage />} />
