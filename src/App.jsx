@@ -12,6 +12,7 @@ import CategoryPage from './pages/ProductsInventory/categories/CategoryPage.jsx'
 import UpdateCategoryPage from './pages/ProductsInventory/categories/UpdateCategoryPage.jsx'
 import ViewCategoryPage from './pages/ProductsInventory/categories/ViewCategoryPage.jsx'
 import StockMovementsPage from './pages/ProductsInventory/movements/StockMovementsPage.jsx'
+import InventoryItemsPage from './pages/ProductsInventory/stock/InventoryItemsPage.jsx'
 import AdjustmentPage from './pages/ProductsInventory/adjustments/AdjustmentPage.jsx'
 import DamagePage from './pages/ProductsInventory/damage/DamagePage.jsx'
 import TransferPage from './pages/ProductsInventory/transfers/TransferPage.jsx'
@@ -125,6 +126,7 @@ function App() {
         <Route path="/products/categories/:id/edit" element={<UpdateCategoryPage />} />
         <Route path="/products/categories/:id" element={<ViewCategoryPage />} />
         <Route path="/products/categories" element={<CategoryPage />} />
+        <Route path="/products/stock" element={<InventoryItemsPage />} />
         <Route path="/products/movements" element={<StockMovementsPage />} />
         <Route path="/products/transfers" element={<TransferPage />} />
         <Route path="/products/adjustments" element={<AdjustmentPage />} />

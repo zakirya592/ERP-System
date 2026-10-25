@@ -19,7 +19,7 @@ import {
 } from './partnershipRecords.js'
 import { Fact, OrganizationTabs, Stat, StatusPill } from './partnershipUi.jsx'
 
-const limit = 20
+const limit = 10
 
 const statusOptions = [{ label: 'All statuses', value: '' }, ...partnershipStatuses]
 
@@ -293,7 +293,6 @@ function PartnershipPage() {
               page={page}
               totalCount={total}
               onPageChange={setPage}
-              className="h-auto! max-h-none!"
               contentClassName="min-w-full"
               emptyContent={
                 partnershipsQuery.isError

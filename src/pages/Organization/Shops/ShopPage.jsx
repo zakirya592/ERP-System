@@ -10,7 +10,7 @@ import { fetchAllPages } from '../../../utils/exportExcel.js'
 import { useShop, useShops, useUpdateShopStatus } from '../../../queries/shops/shops.queries.js'
 import { display, mapShop, shopAccess, shopRule, shopStatuses, statusClassName } from './shopRecords.js'
 
-const limit = 20
+const limit = 10
 
 const tabs = ['Branches', 'Shops', 'Warehouses', 'Employees', 'Owners', 'Partnerships']
 
@@ -366,7 +366,6 @@ function ShopPage() {
                   data={employees}
                   pagination
                   rowsPerPage={limit}
-                  className="h-auto! max-h-none!"
                   contentClassName="min-w-full"
                   emptyContent={
                     !selected

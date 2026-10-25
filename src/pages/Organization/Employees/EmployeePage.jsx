@@ -10,7 +10,7 @@ import { fetchAllPages } from '../../../utils/exportExcel.js'
 import { useEmployee, useEmployees, useUpdateEmployeeStatus } from '../../../queries/employees/employees.queries.js'
 import { display, employeeAccess, employeeSummary, employmentStatuses, mapEmployee, statusClassName } from './employeeRecords.js'
 
-const limit = 20
+const limit = 10
 
 const tabs = ['Branches', 'Shops', 'Warehouses', 'Employees', 'Owners', 'Partnerships']
 
@@ -349,7 +349,6 @@ function EmployeePage() {
                   page={page}
                   totalCount={total}
                   onPageChange={setPage}
-                  className="h-auto! max-h-none!"
                   contentClassName="min-w-full"
                   emptyContent={
                     employeesQuery.isError

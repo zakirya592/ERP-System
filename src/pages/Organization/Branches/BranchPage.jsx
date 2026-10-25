@@ -8,7 +8,7 @@ import { getBranches } from '../../../api/branches.api.js'
 import { useBranch, useBranches, useUpdateBranchStatus } from '../../../queries/branches/branches.queries.js'
 import { fetchAllPages } from '../../../utils/exportExcel.js'
 
-const limit = 20
+const limit = 10
 
 const tabs = ['Branches', 'Shops', 'Warehouses', 'Employees', 'Owners', 'Partnerships']
 
@@ -390,7 +390,6 @@ function BranchPage() {
                 page={page}
                 totalCount={total}
                 onPageChange={setPage}
-                className="h-auto! max-h-none!"
                 contentClassName="min-w-full"
                 emptyContent={
                   branchesQuery.isError

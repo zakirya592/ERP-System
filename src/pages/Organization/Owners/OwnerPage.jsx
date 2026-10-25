@@ -18,7 +18,7 @@ import {
   statusClassName,
 } from './ownerRecords.js'
 
-const limit = 20
+const limit = 10
 
 const tabs = ['Branches', 'Shops', 'Warehouses', 'Employees', 'Owners', 'Partnerships']
 
@@ -353,7 +353,6 @@ function OwnerPage() {
                   page={page}
                   totalCount={total}
                   onPageChange={setPage}
-                  className="h-auto! max-h-none!"
                   contentClassName="min-w-full"
                   emptyContent={
                     ownersQuery.isError

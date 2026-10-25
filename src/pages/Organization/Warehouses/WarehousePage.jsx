@@ -10,7 +10,7 @@ import { fetchAllPages } from '../../../utils/exportExcel.js'
 import { useUpdateWarehouseStatus, useWarehouse, useWarehouses } from '../../../queries/warehouses/warehouses.queries.js'
 import { display, mapWarehouse, statusClassName, warehouseAccess, warehouseRule, warehouseStatuses } from './warehouseRecords.js'
 
-const limit = 20
+const limit = 10
 
 const tabs = ['Branches', 'Shops', 'Warehouses', 'Employees', 'Owners', 'Partnerships']
 
@@ -337,7 +337,6 @@ function WarehousePage() {
                   page={page}
                   totalCount={total}
                   onPageChange={setPage}
-                  className="h-auto! max-h-none!"
                   contentClassName="min-w-full"
                   emptyContent={
                     warehousesQuery.isError
