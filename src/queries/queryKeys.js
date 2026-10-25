@@ -61,6 +61,10 @@ export const queryKeys = {
     list: (params) => ['stockMovements', 'list', params],
     detail: (id) => ['stockMovements', 'detail', id],
   },
+  inventoryItems: {
+    list: (params) => ['inventoryItems', 'list', params],
+    detail: (id) => ['inventoryItems', 'detail', id],
+  },
   suppliers: {
     list: (params) => ['suppliers', 'list', params],
     detail: (id) => ['suppliers', 'detail', id],
